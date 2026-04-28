@@ -164,7 +164,7 @@ The most recent file is `main.log`. For provider-specific issues, also check `ba
 
 ## Still stuck
 
-Open an issue at [bodegaone.ai/feedback](https://bodegaone.ai/feedback) or email [hello@bodegaone.ai](mailto:hello@bodegaone.ai). Include:
+Open an issue at [bodegaone.ai/feedback](https://bodegaone.ai/feedback) or email [help@bodegaone.ai](mailto:help@bodegaone.ai). Include:
 
 - OS + version
 - Bodega One version (Help → About, or check the installer filename)

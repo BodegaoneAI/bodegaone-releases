@@ -44,7 +44,7 @@ Common install snags (SmartScreen, quarantine, AppImage perms, auto-update) are 
 ## Reporting bugs
 
 The source repo is private. File issues on [bodegaone.ai/feedback](https://bodegaone.ai/feedback)
-or email [hello@bodegaone.ai](mailto:hello@bodegaone.ai).
+or email [help@bodegaone.ai](mailto:help@bodegaone.ai).
 
 ## Verifying integrity
 
