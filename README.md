@@ -37,10 +37,14 @@ May 2026 beta builds carry a hard-coded expiry date baked into the binary:
 After expiry the app shows a terminal screen and stops working. Update to a
 newer release to continue.
 
+## Troubleshooting
+
+Common install snags (SmartScreen, quarantine, AppImage perms, auto-update) are covered in [TROUBLESHOOTING.md](TROUBLESHOOTING.md). For the full guide (providers, activation, agent loop, Cloud Boost) see [bodegaone.ai/help](https://bodegaone.ai/help).
+
 ## Reporting bugs
 
 The source repo is private. File issues on [bodegaone.ai/feedback](https://bodegaone.ai/feedback)
-or email josephpelaez25@gmail.com.
+or email [hello@bodegaone.ai](mailto:hello@bodegaone.ai).
 
 ## Verifying integrity
 
