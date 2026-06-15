@@ -267,7 +267,7 @@ work before it commits.
 
 ---
 
-## [v1.0.0-beta.28]: 2026-06-11
+## [v1.0.0-beta.28] - 2026-06-11
 
 The polish release. A 25-agent research sweep over everything already shipped became five waves of work: correctness fixes (cost tracking showed $0.00 for current flagship models, the air-gap cloud-provider warning never fired, two real memory/shutdown leaks), performance (llama.cpp loading no longer blocks boot, Map staleness checks parallelized, embedding index builds detach), a UX consistency sweep (one focus ring, shared icons, light-theme-safe status colors), and the small features users kept asking for: Run Tasks in the terminal, a unified Runs Inbox, one-click rules import from other editors, opt-in read-only auto-approve, pre-send cost estimates, delta-only re-review, loop countdowns, and visible progress on every model swap. No new direction, no new flags to learn: beta.27, tightened.
 
@@ -362,7 +362,7 @@ The polish release. A 25-agent research sweep over everything already shipped be
 
 ---
 
-## [v1.0.0-beta.27]: 2026-06-10
+## [v1.0.0-beta.27] - 2026-06-10
 
 Run your agent on a schedule, on your machine, for free, with changes gated by QEL verification. That gate got a ground-up correctness and capability overhaul this release: QEL now *runs* your code instead of stopping at "it compiles," its accuracy is a measured number guarded in CI, and verification is roughly twice as fast. The terminal finishes what beta.26 started (pinned running-command header, a real Output panel, a real Debug Console), Bodega registers as a file handler so double-clicking a file just opens it, and a release-wide polish pass tightened buttons, sliders, settings density, and the source-control workflow (hunk-level staging).
 
@@ -434,7 +434,7 @@ Run your agent on a schedule, on your machine, for free, with changes gated by Q
 
 ---
 
-## [v1.0.0-beta.26.1], 2026-06-09
+## [v1.0.0-beta.26.1] - 2026-06-09
 
 A model-only hotfix: adds Claude Fable 5 and corrects stale Anthropic pricing.
 
@@ -449,7 +449,7 @@ A model-only hotfix: adds Claude Fable 5 and corrects stale Anthropic pricing.
 
 ---
 
-## [v1.0.0-beta.26], 2026-06-08
+## [v1.0.0-beta.26] - 2026-06-08
 
 Bring Bodega into your editor, define your own agents, and read the docs without leaving the app. Plus a sharper Bodega Map, a faster Claude path, local embeddings, spend caps, a terminal that links straight to your code, and a long list of fixes.
 
@@ -489,7 +489,7 @@ Bring Bodega into your editor, define your own agents, and read the docs without
 
 ---
 
-## [v1.0.0-beta.25], 2026-06-05
+## [v1.0.0-beta.25] - 2026-06-05
 
 The biggest beta yet. Your codebase becomes something you can talk to, agents can race each other on the same task, and you can bring your own coding agents (Cursor, Claude Code, Gemini CLI, Codex) into Bodega's fleet. Plus a verification layer you can actually see, cost tracking, faster local inference, and a long list of fixes.
 
@@ -534,7 +534,7 @@ The biggest beta yet. Your codebase becomes something you can talk to, agents ca
 
 ---
 
-## [v1.0.0-beta.24.1], 2026-06-02
+## [v1.0.0-beta.24.1] - 2026-06-02
 
 Hotfix for three issues beta users hit on Windows and with local models.
 
@@ -546,7 +546,7 @@ Hotfix for three issues beta users hit on Windows and with local models.
 
 ---
 
-## [v1.0.0-beta.24], 2026-06-01
+## [v1.0.0-beta.24] - 2026-06-01
 
 Local vision arrives. Run a text model and a vision model side by side on llama.cpp. Attach an image to any local chat model and Bodega routes it to your bound VLM, hot-swapping the model for the answer and swapping back automatically, entirely on your machine. Plus an in-app changelog, a refreshed guided tour, and an extended beta window.
 
@@ -568,7 +568,7 @@ Local vision arrives. Run a text model and a vision model side by side on llama.
 
 ---
 
-## [v1.0.0-beta.23], 2026-05-25
+## [v1.0.0-beta.23] - 2026-05-25
 
 Twelve-day §D cycle around the Dockview layout migration, two-model VLM orchestration, and a polish pass driven by Joe's live-smoke + four-agent review (Reviewer / Sentinel / QA / Doc Guardian). **73 new tests** across the dockview suite, **~50 commits since beta.21**. Tag headline: *panels you can move, vision that just works, dropdowns that no longer hide behind the editor.*
 
@@ -691,7 +691,7 @@ A bugbash driven by Joe's sanity test before binary build surfaced sixteen tight
 
 ---
 
-## [v1.0.0-beta.21]: 2026-05-22
+## [v1.0.0-beta.21] - 2026-05-22
 
 Three-day cycle driven by **Cachev's beta.20 feedback** + Joe's live smoke. Two big features, eight tracks of layout polish, twelve smoke-fix commits, and 108 new tests. **39 commits** since beta.20. Tag headline: *the agent can see the preview now, local-first, no cloud round trip.*
 
@@ -783,7 +783,7 @@ Backend **4,859** passing / 54 skipped / 15 todo (+84 since beta.20 across the P
 
 ---
 
-## [v1.0.0-beta.20], 2026-05-19
+## [v1.0.0-beta.20] - 2026-05-19
 
 Six days of work, **41 PRs (#389–#429)**, organized as three overlapping waves: **multi-provider routing recovery** (per-session provider stickiness so chat doesn't dredge a stale Ollama config when you switch to Kimi/Qwen mid-conversation), the **Fleet feature** (background agent sessions running in isolated git worktrees, with per-session worktree provisioning, apply/discard/merge UX, status indicators, oscillation guards, and a Send-to-Fleet button on the Agent panel), and a **two-day live-driver smoke pass** that uncovered a security-grade write-leak regression and four UX bugs which were all closed across PRs #428 + #429.
 
@@ -851,7 +851,7 @@ Backend **4,775** passing / 54 skipped / 15 todo (+4 new chat-stream-worktree en
 
 ---
 
-## [v1.0.0-beta.19], 2026-05-13
+## [v1.0.0-beta.19] - 2026-05-13
 
 Eight PRs covering three Cachev-driven fixes (beta tester Cachev surfaced four real issues on 2026-05-12; PR #345 handled one yesterday, three more land in this release), one structural-debt refactor (the biggest god-file in the repo), bundle-weight reduction, a settings-wiring audit + fix pass, two design specs that unblock the next session, and a review-fleet close-out PR.
 
@@ -925,7 +925,7 @@ Of Cachev's four reports from 2026-05-12: #1 (terminal in project) shipped in th
 
 ---
 
-## [v1.0.0-beta.18.3], 2026-05-11
+## [v1.0.0-beta.18.3] - 2026-05-11
 
 Patch release. Twelve fixes covering provider-switch state hygiene, three classifier regressions Joe caught during live cloud-provider testing, and the long-running IDE↔Chat session leak that's been hitting users since `useChat` was extended to power both the chat panel and the IDE Agent panel. Three PRs merged: #336 (provider switch), #337 (classifier round 2), #338 (QA findings).
 
@@ -1021,7 +1021,7 @@ Settings tests were failing with `SecretCipher.initialize() must be called befor
 
 ---
 
-## [v1.0.0-beta.18.2], 2026-05-11
+## [v1.0.0-beta.18.2] - 2026-05-11
 
 Hotfix for a critical install-time failure on the packaged Windows portable build: a fresh install ran into "Setup hit a snag, API error: Bad Request" on both the llama.cpp and Ollama setup paths. Surfaced via Discord feedback within 48 hours of beta.18.1 ship.
 
@@ -1070,7 +1070,7 @@ A standalone Node script simulated the packaged-Electron environment (mocked `pr
 
 ---
 
-## [v1.0.0-beta.18.1], 2026-05-09
+## [v1.0.0-beta.18.1] - 2026-05-09
 
 Hotfix for two regressions surfaced in Discord the morning after beta.18 shipped, plus the cleanup batch originally slated for beta.19, folded into one release so users get every fix in one update. Two more bugs surfaced during live verification of the hotfix and were fixed before tagging.
 
@@ -1212,7 +1212,7 @@ Featherless's serverless inference cold-starts at 30-60s. Without help, the firs
 
 ---
 
-## [v1.0.0-beta.18], 2026-05-08
+## [v1.0.0-beta.18] - 2026-05-08
 
 Headline: **V2 Phase 2 lands and the agentic loop gets honest.** Cloud providers get the same painless-install treatment llama.cpp and Ollama got. Per-message cost tracking lands for BYOK so you stop wondering what that 8-iteration repo-tour just charged your card. And two ship-blocker bugs were uncovered live during pre-tag verification: `/think` was being prepended to DeepSeek requests it didn't understand, and the over-eager-tool-use nudge was firing on legitimate exploration prompts: telling models to "STOP READING FILES" right after the user asked them to. Both fixed, both have regression tests, and the panel will now surface model reasoning between iterations so the next class of bug self-reports visually instead of vanishing into a step counter.
 
@@ -1319,7 +1319,7 @@ Headline: **V2 Phase 2 lands and the agentic loop gets honest.** Cloud providers
 
 ---
 
-## [v1.0.0-beta.17], 2026-05-07
+## [v1.0.0-beta.17] - 2026-05-07
 
 Headline: **Ollama joins the painless-install club.** Set up Ollama from inside Bodega (no terminal, no detour to ollama.com) matching the llama.cpp managed install we shipped in beta.16. Plus a stack of ~12 onboarding polish bugs caught during a real demo recording session.
 
@@ -1369,7 +1369,7 @@ Headline: **Ollama joins the painless-install club.** Set up Ollama from inside 
 
 ---
 
-## [v1.0.0-beta.16]: 2026-05-06
+## [v1.0.0-beta.16] - 2026-05-06
 
 Headline: **first-class llama.cpp support.** Bodega now installs and manages a llama-server binary, downloads GGUFs from a curated 17-model catalog, hot-swaps between them with crash recovery, and stays consistent with cloud providers when you switch back. Plus a cascade of correctness + security fixes from a multi-agent review pass.
 
@@ -1431,7 +1431,7 @@ Backend 3,728 → **3,772** (+44 covering crash recovery, alreadyLoaded liveness
 
 ---
 
-## [v1.0.0-beta.15]: 2026-05-05
+## [v1.0.0-beta.15] - 2026-05-05
 
 Cross-platform fix bundle from Joe's beta.14 install-test on Windows + Martin's on Intel Mac. Same-day follow-up to beta.14: 8 fixes plus a major expansion of the diagnostics-bundle export so future "user got an error and is gone" reports are debuggable from a single dropped file.
 
@@ -1484,7 +1484,7 @@ Two-reviewer pass before merge caught and fixed:
 
 ---
 
-## [v1.0.0-beta.14]: 2026-05-05
+## [v1.0.0-beta.14] - 2026-05-05
 
 Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a long tail of Joe-tested polish. The IDE layout no longer fights the user's drag, the agent doesn't wedge at iter cap, and the Code-mode chrome (model badge, context ring, composer) now reflects what's actually selected.
 
@@ -1540,7 +1540,7 @@ Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a lon
 
 ---
 
-## [v1.0.0-beta.13.1]: 2026-05-04
+## [v1.0.0-beta.13.1] - 2026-05-04
 
 Hotfix bundle for v1.0.0-beta.13. **beta.13 was drafted (un-published) within the hour of release** because the macOS x64 build shipped an arm64 sqlite3 binding (broke Intel Macs) and the Linux arm64 build shipped an x86_64 sqlite3 binding (broke arm64 Linux). Martin caught the dlopen error on his Intel Mac and three additional UX regressions during smoke testing before any external user saw the binary.
 
@@ -1590,7 +1590,7 @@ Everything in beta.13 is in beta.13.1. See the beta.13 entry below for the full 
 
 ---
 
-## [v1.0.0-beta.13]: 2026-05-04 (DRAFTED, replaced by beta.13.1)
+## [v1.0.0-beta.13] - 2026-05-04 (DRAFTED, replaced by beta.13.1)
 
 > ⚠️ This release was drafted (un-published) within an hour of going live due to cross-arch native module bug. See beta.13.1 for the actual shipped version. The feature changes below all carry forward.
 
@@ -1629,7 +1629,7 @@ Notarization restored, parked taskbar/update-check fixes shipped, plus a UX audi
 
 ---
 
-## [v1.0.0-beta.12.2]: 2026-05-04
+## [v1.0.0-beta.12.2] - 2026-05-04
 
 Stability hotfixes for the beta.11 ship cycle. Auto-update from beta.11/beta.12 → beta.12.2 works on Windows and Linux. macOS users on beta.11 should download the new .dmg manually; auto-update returns once notarization is restored in beta.13.
 
@@ -1654,7 +1654,7 @@ Stability hotfixes for the beta.11 ship cycle. Auto-update from beta.11/beta.12 
 
 ---
 
-## [v1.0.0-beta.11]: 2026-05-04
+## [v1.0.0-beta.11] - 2026-05-04
 
 First Mac-signed beta build. Sets up the public release mirror at `BodegaoneAI/bodegaone-releases`, certificates configured, three-OS matrix shipping artifacts.
 
@@ -1678,7 +1678,7 @@ Six release iterations across `.11 → .12 → .12.1 → .12.2`, with `.11` and 
 
 ---
 
-## [v1.0.0-beta.10]: 2026-04-28
+## [v1.0.0-beta.10] - 2026-04-28
 
 > First public-facing beta. Everything since v1.0.0-beta.8 (2026-03-30): four
 > weeks of work covering the licensing/beta-gate flow, signed release pipeline,
