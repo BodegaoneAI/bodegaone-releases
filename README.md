@@ -1,67 +1,85 @@
-# Bodega One
+<p align="center">
+  <img src="assets/bodega-logo.png" alt="Bodega One" width="300" />
+</p>
 
-Binary distribution for [Bodega One](https://bodegaone.ai), the local-first AI IDE. The source lives in a separate private repo. This repo carries the built installers, the auto-update manifests, and the PowerShell install script.
+<h3 align="center">The local-first AI development environment</h3>
 
-## What is Bodega One?
+<p align="center">
+  <a href="https://github.com/BodegaoneAI/bodegaone-releases/releases/latest">Download</a>
+  ·
+  <a href="CHANGELOG.md">Changelog</a>
+  ·
+  <a href="TROUBLESHOOTING.md">Troubleshooting</a>
+  ·
+  <a href="https://bodegaone.ai">bodegaone.ai</a>
+</p>
 
-A desktop AI development environment that runs on your machine. Two modes in one app:
+---
 
-- **Chat Mode**: streaming conversations, persistent memory, web search, file attachments, and tool use, against any model you point it at.
-- **Code Mode**: a full IDE with the Monaco editor, a file tree, multiple terminals, a Git panel, and four AI panels (Agent, Research, Debug, Advisor).
+Binary distribution for [Bodega One](https://bodegaone.ai). The app is developed in a private repository; this repo carries the built installers, the auto-update manifests, and the install script, so downloads and update checks live at stable public URLs.
 
-The agent does not just generate code and hope. The Quality Enforcement Layer extracts a contract from your request, writes the code, compiles it, runs your tests, boots the result and probes it, then repairs failures with targeted instructions. It connects to 26 provider presets, local (Ollama, LM Studio, llama.cpp, vLLM, and more) or cloud (OpenAI, Anthropic, Google, Groq, and more), with one-click switching and no vendor lock-in.
+## What it is
 
-Turn on air-gap mode and zero bytes leave your machine. 15 enforcement layers hold that line.
+A desktop AI development environment that runs on your machine, against your models. Two modes share one app:
 
-## What is new in beta.29
+- **Chat mode** — streaming conversations with persistent memory, web search, file attachments, and tool use, against whatever model you point it at.
+- **Code mode** — a full IDE (Monaco editor, file tree, terminals, a Git panel) plus AI panels for the agent, research, debugging, and advice.
 
-- **Routing rules**: an ordered, first-match-wins list that decides which model handles what, by mode, ask type, agent step, file path, message size, or daily spend. Every routed request says which rule decided it.
-- **The agent sees type errors as it writes**: live diagnostics from a bundled language server (TypeScript, JavaScript, Python) land in the tool result, so the model fixes the error in the same pass. Fully local, works under air-gap.
-- **Goals**: tell the agent what "done" means and it drives until the work verifies, with a second model sent in to attack the result before it can finish.
-- **Verified Private Automation**: point Bodega at a task or a GitHub issue and it implements the change in an isolated worktree on your machine, runs full verification, and opens a pull request with the proof in the description. Nothing leaves your machine but the branch and the PR.
+The agent does not generate code and hope. The Quality Enforcement Layer reads a contract from your request, writes the code, compiles it, runs your tests, boots the result and probes it, then repairs what failed with targeted instructions. Point it at local models (Ollama, LM Studio, llama.cpp, vLLM) or cloud providers (OpenAI, Anthropic, Google, Groq, and 20+ more) and switch between them per request — no account with us, no vendor lock-in.
 
-The full history is in [CHANGELOG.md](CHANGELOG.md).
+Turn on air-gap mode and nothing leaves your machine. That boundary is enforced in the engine, not promised in a policy.
+
+The [changelog](CHANGELOG.md) records every release; the [latest release](https://github.com/BodegaoneAI/bodegaone-releases/releases/latest) is always current.
 
 ## Install
 
 ### Windows (recommended)
+
 ```powershell
 irm https://bodegaone.ai/install.ps1 | iex
 ```
 
-Or grab the installer directly from the [latest release](https://github.com/BodegaoneAI/bodegaone-releases/releases/latest):
-- `Bodega-One-Setup-latest.exe` (NSIS installer)
-- `Bodega-One-latest-portable-x64.zip` (portable, no admin)
+Or take the installer straight from the [latest release](https://github.com/BodegaoneAI/bodegaone-releases/releases/latest):
+
+- `Bodega-One-Setup-latest.exe` — NSIS installer
+- `Bodega-One-latest-portable-x64.zip` — portable, no admin rights
 
 ### macOS
-- `Bodega-One-latest-arm64.dmg` (Apple Silicon: M1, M2, M3, M4)
-- `Bodega-One-latest-x64.dmg` (Intel)
+
+- `Bodega-One-latest-arm64.dmg` — Apple Silicon (M1–M4)
+- `Bodega-One-latest-x64.dmg` — Intel
 
 ### Linux
-- `Bodega-One-latest-x64.AppImage` and `Bodega-One-latest-arm64.AppImage`
+
+- `Bodega-One-latest-x64.AppImage`
+- `Bodega-One-latest-arm64.AppImage`
 
 ## Auto-update
 
-The desktop app uses [electron-updater](https://www.electron.build/auto-update). Each release ships its manifests: `latest.yml` (Windows), `latest-mac.yml`, and `latest-linux.yml`. When air-gap mode is on, update checks are blocked.
+The desktop app updates through [electron-updater](https://www.electron.build/auto-update). Each release ships its manifests — `latest.yml` (Windows), `latest-mac.yml`, `latest-linux.yml`. Air-gap mode blocks update checks along with everything else.
 
 ## Beta expiry
 
-Beta builds carry a hard-coded expiry date baked into the binary. Current builds expire **2026-11-01** (both the public builds and the influencer or press builds). After expiry the app shows a terminal screen and stops working, so update to a newer release to continue.
+Beta builds carry an expiry date compiled into the binary. Current builds expire **2026-11-01** (public, influencer, and press builds alike). After that the app shows a notice and stops; install a newer release to continue.
 
 ## Troubleshooting
 
-Common install snags (SmartScreen, quarantine, AppImage permissions, auto-update) are covered in [TROUBLESHOOTING.md](TROUBLESHOOTING.md). For the full guide (providers, activation, agent loop, Cloud Boost) see [bodegaone.ai/help](https://bodegaone.ai/help).
+The common install snags — SmartScreen, macOS quarantine, AppImage permissions, auto-update — are covered in [TROUBLESHOOTING.md](TROUBLESHOOTING.md). The full guide (providers, activation, the agent loop, Cloud Boost) lives at [bodegaone.ai/help](https://bodegaone.ai/help).
 
 ## Reporting bugs
 
 The source repo is private. File issues at [bodegaone.ai/feedback](https://bodegaone.ai/feedback) or email [help@bodegaone.ai](mailto:help@bodegaone.ai).
 
-## Verifying integrity
+## Verifying a download
 
-Each release ships SHA512 hashes inside `latest*.yml`. The PowerShell installer verifies automatically before extraction. To check by hand:
+Each release ships SHA-512 hashes inside `latest*.yml`. The PowerShell installer checks them before it extracts anything. To verify by hand:
 
 ```powershell
 (Get-FileHash -Algorithm SHA512 .\Bodega-One-Setup-latest.exe).Hash
 ```
 
-Compare against the `sha512` field in `latest.yml`, decoded from base64.
+Compare against the `sha512` field in `latest.yml` (base64-decoded).
+
+## License
+
+Proprietary. Free to use; a commercial license is required for commercial use. This repository exists solely to host downloads, update manifests, and install scripts at public URLs.

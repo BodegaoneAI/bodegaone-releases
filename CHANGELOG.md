@@ -7,7 +7,1177 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased: v1.0.0-beta.29]
+## [1.0.0-beta.31.10] - 2026-07-06
+
+### Added
+- **`bodega://models/huggingface/{owner}/{repo}` deep links.** The `bodega://`
+  protocol handler routes its first real destination: a HuggingFace model link
+  opens Settings → Models → Discover with the repo ready to download —
+  llama.cpp primary auto-searches the GGUF browser for it (the disclosure pops
+  open); Ollama primary prefills the custom pull input with the `hf.co/` form;
+  air-gapped machines get a clear toast instead of a silent no-op. This is the
+  "Use this model" flow for the HuggingFace Local Apps listing. Deep-link
+  payloads are strictly validated in the main process before anything reaches
+  the renderer (raw-pathname matching, bounded length, charset-locked), and
+  unknown query params are tolerated so future hints (e.g. `?file=`) won't
+  break older builds. The parser is unit-tested against injection shapes.
+
+### Fixed
+- **Cold-start deep links no longer vanish on Windows/Linux.** A `bodega://`
+  click with the app closed launched it to nothing: the initial-launch argv
+  scan only extracted file paths, so protocol URLs were handled only when a
+  copy was already running (`second-instance`). The launch argv is now scanned
+  for protocol URLs too, and the routed action queues until the renderer has
+  finished loading — same pattern the file-association path already used.
+- **Packaged macOS/Linux builds never registered the `bodega://` protocol.**
+  The electron-builder config lacked the `protocols` declaration, so packaged
+  macOS builds had no `CFBundleURLTypes` (runtime registration only covers
+  dev-mode) and Linux desktop entries had no `x-scheme-handler` MimeType —
+  deep links errored at the OS level before the app ever saw them. Declared;
+  Windows was already covered by runtime registration.
+
+---
+
+## [1.0.0-beta.31.9.1] - 2026-07-06
+
+### Added
+- **ACP `initialize` advertises `authMethods`.** The agentic-coding-protocol
+  handshake omitted the field entirely; Bodega is local-first (no account, no
+  sign-in), so it now emits an explicit empty `authMethods: []` — a complete,
+  spec-correct response for a strict ACP client or the agent registry validator,
+  which makes the terminal surface registry-ready.
+
+### Fixed
+- **The `gpt-oss` phantom model is gone.** `OllamaProvider` booted with a
+  hardcoded `gpt-oss` placeholder default; any code path that read the default
+  before a healer replaced it reported — or requested — a model the user never
+  installed (agentic run summaries mislabeled `gpt-oss` while another model
+  actually served the tokens). The placeholder is removed: the default is empty
+  until lazily resolved from the *installed* model list via the embedder-aware
+  picker (never an embedding model, never a name that isn't present), and the
+  "no model selected" guidance stays for a machine with nothing installed.
+- **Local model auto-selection never lands on an embedder.** The reconfigure
+  healer took the alphabetically-first installed model, so a machine whose first
+  model was an embedder (e.g. `qwen3-embedding:4b`) got an un-chattable default
+  and every request failed "does not support chat." It now uses the same
+  embedder-aware curated picker.
+- **File edits survive CRLF checkouts.** `str_replace` matched the old string
+  byte-for-byte, but a model cannot see carriage returns in the content it
+  reads, so on a CRLF working tree (Windows / git autocrlf) every edit failed
+  "old_string not found" until the run gave up. Matching is now line-ending
+  tolerant and preserves the file's own EOL style in the replacement.
+- **QEL no longer fails correct removals.** A "remove X" / "delete X" task
+  extracted the named construct and then verified it was still *present* —
+  demanding the continued existence of the thing the task asked to eliminate,
+  an unsatisfiable check that thrashed the repair loop and mislabeled correct
+  work as failed. Verification now derives the expectation from the verb
+  (add/change → present, remove/delete → absent), and `rename X to Y` verifies
+  the new name instead of the old one.
+- **Big local models get their real context window.** The VRAM-safe window
+  estimator sized models against an *instantaneous free-VRAM snapshot* — so a
+  27B sized while an 8B was still resident got an 8,356-token window on a
+  32GB card (the correct post-eviction answer is ~19K), the bad-moment probe
+  was memoized for the whole session, and a model sized while itself resident
+  had its weights subtracted twice. The estimator now sizes for the post-load
+  world (total VRAM minus a fixed reserve — Ollama evicts the resident model
+  on load); instantaneous free VRAM still drives the can-these-coexist check,
+  where it belongs.
+- **A degraded cloud model list can no longer override your model choice.**
+  When a rate-limited provider returned a partial `/models` response, the
+  auto-default healer treated the user's explicitly-chosen model as "not
+  available" and silently replaced it with a curated pick (a rate-limited Kimi
+  session was flipped to gpt-4o). Not-in-list healing now applies only to
+  local providers, whose lists are complete enumerations; on cloud presets a
+  user-set model always wins. Empty-response summaries also now carry real
+  results for diagnostics and test runs instead of "Used get_diagnostics".
+
+## [1.0.0-beta.31.9] - 2026-07-06
+
+### Added
+- **The docs hub covers the CLI.** A new "Bodega One Code (CLI)" section in the
+  in-app docs: what the terminal surface is, install one-liners for all three
+  platforms, first-run setup, the command table, headless/CI behavior, and how
+  the CLI shares this app's providers, settings, and sessions through the
+  family data dir.
+
+### Fixed
+- **Voice transcription keeps the uploaded audio's real format.** The
+  speech-to-text route ignored the upload's declared Content-Type and stamped
+  every temp file `.webm`, so an OGG voice note (how Telegram and Discord voice
+  messages arrive via the bodega-agent, gap A3b) reached extension-sniffing STT
+  engines mislabeled. The route now reads the part's Content-Type, writes a
+  matching temp extension, and passes the MIME through to the STT service. The
+  desktop app's own recorder (webm, no declared part type) behaves exactly as
+  before.
+- **The shared database is now safe when two Bodega apps run at once** (S1
+  follow-through — four concurrency fixes). The family-shared data dir means the
+  IDE backend and the Telegram-agent backend can open the *same* `bodega.db` as
+  separate OS processes, which surfaced four check-then-act races (all found by
+  battle-testing, each proven with a true two-process stress test and pinned by
+  regression tests):
+  1. *Lost writes* — no `busy_timeout` was set, so a second concurrent writer's
+     write was silently dropped (~0.5% under contention). Now `busy_timeout=5000`,
+     set as the FIRST pragma: 0 losses in 1800 contended writes.
+  2. *Stranded first-session data* — the migration race-loser did a single
+     done-marker check and fell back to the legacy dir, stranding its writes
+     there. It now polls (bounded) for the winner, matching the Go CLI.
+  3. *Clobbered encryption key* — two fresh backends could both generate
+     `.bodega-cipher-key`, the loser overwriting the winner's key and making its
+     already-encrypted secrets permanently undecryptable (8/8 races corrupted).
+     Key creation is now atomic (exclusive-create; a race loser adopts the
+     winner's key): 0/8.
+  4. *Boot crash on concurrent schema init* — two backends booting together both
+     ran the check-then-ALTER migrations; the second crashed with "duplicate
+     column name" (6/6), and the fresh-DB WAL conversion could also fail with an
+     immediate SQLITE_BUSY (~1 in 6). The entire open + schema sequence is now
+     serialised across processes by a lockfile (stale-TTL reclaimed, bounded
+     wait, fail-open so a lock problem can never block boot): 8/8 clean
+     two-process first boots.
+- **Family-shared canonical data dir** (gap S1, desktop half). The desktop IDE,
+  CLI, and agent historically resolved *three different* data dirs, so a provider
+  key / MCP server / session set in one was invisible to the others. The IDE now
+  resolves the neutral canonical location shared with the CLI + agent
+  (`%LOCALAPPDATA%\BodegaOne` on Windows, `~/Library/Application Support/BodegaOne`
+  on macOS, `${XDG_DATA_HOME:-~/.local/share}/bodegaone` on Linux), wired through
+  every main-process anchor (backend spawn env, diagnostics resolver, worktree
+  base, air-gap.lock). Migration is strictly safe — **copy-not-move** (a legacy
+  dir is never touched), auto-migrating only the unambiguous single-legacy-source
+  case; when multiple populated legacy dirs exist it keeps using the IDE's own
+  `userData` dir (zero regression, the 48MB store stays put) and drops a
+  `.consolidation-pending.json` marker for a deliberate consolidation step. A hot
+  source (an app actively writing its DB) defers migration. `BODEGA_USER_DATA_DIR`
+  still overrides everything (QA scripts / demo-fresh-install). Behaviourally
+  identical to the CLI's Go implementation; 6 unit tests mirror the CLI's safety
+  suite. NOTE: needs an Electron live-smoke before a main release — the migration
+  logic is unit-verified but the full app-boot integration is not yet live-tested.
+- **Background commands can no longer leave orphaned processes behind.** A dev
+  server started in the background could survive closing the app (its helper
+  process escaped the shutdown cleanup) and keep a port occupied — which could
+  then block the local model server from starting. Shutdown now verifies the
+  whole process tree is gone.
+- **Background commands can't take over Bodega's own ports.** A backgrounded
+  command that tries to serve on a port Bodega itself uses (backend, local model
+  server, embeddings) is refused up front with a suggestion to pick another port.
+- **A port conflict is reported as a port conflict.** When the local model server
+  can't start because its port is taken, the error now says so — instead of the
+  misleading "context window too high" message.
+
+### Security
+- **`--deny-tools` can no longer be evaded by tool-name aliases.** The per-request
+  tool deny list matched the exact name the model emitted, but the executor
+  resolves aliases before running a tool (`bash`/`run`/`git`/`terminal` → shell,
+  `write_file`/`create_file` → file_system, `edit_file` → str_replace). So a denied
+  `shell` was bypassed by emitting `bash`, and a denied `file_system` by emitting
+  `write_file`. The deny check now canonicalizes both the incoming name and each
+  deny-list entry. This is a shared-backend fix: it protects every surface that
+  runs the agentic loop — the desktop app, the `bodega` CLI (`--deny-tools`), and
+  the headless agent. Found via live battle-testing.
+
+## [1.0.0-beta.31.8.1] - 2026-07-02
+
+### Fixed
+- **"Open the preview" no longer opens Bodega's own model server.** Asking the
+  assistant to open the preview could land on the local model server's built-in
+  chat page (a "Hello there" screen on localhost:8080) instead of the project,
+  because the dev-server port scan counted Bodega's own servers as dev servers.
+- **The dev-server scan skips Bodega's own ports.** Auto-detection no longer
+  considers the ports Bodega itself listens on (the backend, the local model
+  server, and the embeddings server), so it can only ever find a real dev server
+  or fall back to serving the project folder.
+- **Asking to preview one of Bodega's own addresses is corrected, not obeyed.**
+  If the assistant is told (or guesses) an address that belongs to Bodega's own
+  servers, the preview opens the actual project instead and says why.
+- **Preview navigation to Bodega's own servers is blocked with guidance.**
+  Direct navigation to one of those addresses now returns a clear pointer to the
+  correct way to open the project preview instead of showing the wrong page.
+
+## [1.0.0-beta.31.8] - 2026-07-02
+
+### Added
+- **Optional quality gate for Mixture reference drafts.** With Bodega Mixture
+  on, a weak or off-topic reference draft could still be handed to the
+  aggregator and drag down the final answer. A new opt-in setting
+  (`mixture.qel_gate`) screens each reference draft before synthesis and drops
+  the ones that fail, so the aggregator only works from drafts worth keeping.
+  Off by default.
+
+### Changed
+- **Faster startup and snappier sessions.** Project file listings are now
+  cached instead of re-scanned on every request, session messages load through
+  a new database index, non-essential startup checks are deferred until after
+  the app is up, and the agentic loop does less redundant work per step.
+- **External clients can now wait for the full toolset.** The backend used for
+  editor integrations signals a second "ready" once MCP servers and skills have
+  finished loading, so an external client can tell when the complete toolset is
+  available instead of connecting into a partial one.
+
+### Fixed
+- **Cloud Boost reasoning settings no longer depend on the local base model.**
+  The remaining places where a boosted cloud run could inherit settings from
+  the local base model (such as reasoning behavior) now consistently use the
+  cloud model that is actually running.
+- **Building a project from scratch no longer triggers helper skills meant for
+  existing code.** A "build X" request in an empty folder could auto-activate a
+  skill written for modifying an existing codebase, sending the model down the
+  wrong path. Skills now check the shape of the task before activating.
+- **Verification reads routes and function names more accurately.** The
+  contract extractor that checks a finished task against your request no longer
+  mistakes HTTP verbs for function names or trips on trailing punctuation in
+  route paths, so verification scores fewer false misses.
+
+### Security
+- **Air-gap mode blocks more ways to reach the network from the shell.**
+  Additional download and scripting tools that can fetch remote content
+  (including certutil, bitsadmin, perl, ruby, and php) are now blocked while
+  air-gapped, and the check is resistant to quoting tricks that previously
+  slipped past it.
+- **Hooks that rewrite a command can no longer bypass approval.** If a
+  configured hook rewrites a tool call into something dangerous, the rewritten
+  command is re-checked with a fresh security context and always requires your
+  approval; web fetches and searches also always prompt in Ask mode.
+- **Concurrent streams on one session are properly serialized.** Two responses
+  can no longer run against the same session at once, and a session that is
+  actively streaming can no longer be deleted out from under itself.
+
+---
+
+## [1.0.0-beta.31.7] - 2026-07-01
+
+### Added
+- **Claude Sonnet 5 and Claude Fable 5.** Sonnet 5 is a new Anthropic flagship
+  with a 1M-token context window. Fable 5 is back after being temporarily
+  withdrawn from general availability; both are available for Anthropic,
+  OpenRouter, and Cloud Boost.
+- **Faster repeated turns on local models.** llama.cpp and Ollama now reuse the
+  prompt cache and keep the model warm between turns, so follow-up messages in a
+  conversation start responding sooner.
+
+### Fixed
+- **Cloud Boost no longer stalls on long tasks with Claude models.** Running a
+  Claude model (Sonnet 5, Fable 5, or Opus) through Cloud Boost while a local
+  model was the base could make it stall and return nothing on longer requests,
+  because the boosted request was mis-handled as if it were a local model. Cloud
+  Boost now treats these as cloud models, so they use native thinking and respond
+  normally.
+- **Capable models keep their full step budget on long tasks.** A few recoverable
+  tool errors part-way through a long task could downgrade a strong model to a
+  short step limit for the rest of the session; strong models now keep their full
+  budget (the safety limit still applies to smaller local models).
+- **A from-scratch build no longer runs to the step limit after it is done.** On
+  a "build X" request, a code-refactoring helper could switch on by mistake and
+  push the model to keep writing and running extra verification files it had
+  nowhere valid to save, using up the remaining steps after the work was already
+  finished. Build requests no longer trigger that helper.
+- **"Open the preview" no longer errors with a text-only local model.** Asking a
+  local model without vision support to screenshot the preview could fail with a
+  server error, and the preview could open the wrong page. Screenshots now fall
+  back gracefully for text-only models (the model is pointed to the captured image
+  instead), and the assistant is steered to open the correct preview URL.
+- **Switching local models is more reliable.** Starting, stopping, swapping, and
+  recovering the local model server are now serialized, so rapid model switches
+  (including vision hand-offs) no longer race or crash.
+- **The app still starts if its license file can't be read.** An unreadable or
+  undecryptable license now falls back to unlicensed instead of stopping the app
+  from booting.
+- **The Mixture progress card always finishes.** After a Mixture turn ended, the
+  progress card could keep spinning; it now resolves to a final state.
+
+---
+
+## [1.0.0-beta.31.6] - 2026-06-29
+
+### Added
+- **Bodega Mixture (Mixture-of-Agents).** A new optional engine that runs several
+  "reference" models in parallel on your turn, then has one "aggregator" model
+  synthesize the single response you see. Enable it in Settings under Models, then
+  pick "Mixture" from the model picker. Reference models run with no tools and the
+  conversation text only; the aggregator owns all tools and writes the reply. Local
+  reference models are near-free, so an all-local mixture costs about one cloud
+  call, and an optional QEL quality gate can verify the synthesized output. Off by
+  default; all `mixture.*` settings are global-only. Honors air-gap (cloud
+  references are dropped when offline) and falls back to a normal single-model turn
+  when fewer than two references are available.
+- **Preview static sites and games without a dev server.** The in-app Preview
+  could only attach to a running dev server like Vite or Next, so a plain
+  project (a bare `index.html` with script files and no build step, like a
+  generated HTML5 game) had no way to preview and just told you to start a dev
+  server. Now, when no dev server is running and the project has an `index.html`
+  at its root, Bodega serves the folder locally and opens it in the Preview
+  panel. Ask the agent to "open the preview", or use the "Preview this folder"
+  button in the Preview panel's empty state. Served on loopback only (air-gap
+  safe), with dotfiles withheld.
+
+### Fixed
+- **Long Cloud Boost builds no longer stop early at a five-minute mark.** A
+  fixed five-minute time limit on the agentic loop could cut off a capable cloud
+  model (such as Opus via Cloud Boost) partway through a long build, after which
+  a "continue" was mis-read as a fresh, simple task and capped at twelve steps.
+  The loop's time budget now scales with the model's capability tier (longer for
+  large and boosted or cloud models), and a "continue" on an in-progress task
+  stays in the full agentic lane with the full step budget.
+- **Local models no longer get stuck at a 4,096-token window.** A local GGUF with
+  no embedded context-length metadata had its window silently clamped to 4,096
+  even on a high-VRAM card, and the output-token reservation (sized from a
+  separate, larger estimate) could then exceed that window, so every message,
+  even a one-word "yo", was rejected as "too long". Bodega now sizes an
+  unknown-metadata model's window from available VRAM instead of collapsing to
+  4,096, keeps a custom `--ctx-size` in sync between the server and the token
+  budget, and never lets the output reservation exceed the window. Restart the
+  app to pick up the corrected window.
+- **Mixture reference models can now be added from the Settings UI.** The Mixture
+  editor saved the reference-model list in a format the backend rejected, so
+  clicking "Add" in Settings silently did nothing and an already-configured list
+  never rendered its rows. Adding, removing, and reading reference models now
+  works (the picker dropdown also groups by provider, shows your local Ollama and
+  llama.cpp models, and uses clean model names).
+
+---
+
+## [1.0.0-beta.31.5] - 2026-06-26
+
+Security and reliability rollup from two app-wide bug-hunt sweeps: closes a set
+of approval-gate, air-gap, and DNS-rebinding gaps, prevents an index-wipe and a
+few silent data-loss paths, and fixes a batch of provider, streaming, and
+concurrency bugs found across the app, plus a set of Cloud Boost fixes. No
+feature changes.
+
+### Cloud Boost & context
+- **Cloud Boost no longer crashes partway through a task.** When Boost (a cloud
+  model like Opus) drove a long code build, the conversation could be trimmed in
+  a way that left a tool result without its matching tool call, which the cloud
+  API rejected and stopped the run. The history sent to the cloud model is now
+  always structurally valid, and trimming keeps tool call/result pairs together.
+- **The context meter reflects the model that's actually running.** With Cloud
+  Boost on, the meter stayed on your local model and its (small) window, so a
+  short conversation could read as over 100% full and force needless
+  compaction. It now shows the active boost model's real window, both while the
+  run is in progress and in the inspector, even when a local llama.cpp model is
+  set as the primary.
+- **A run that stops because your provider is out of credit now tells you why.**
+  When a cloud run ran out of API credit (or the key was invalid or revoked, or
+  the provider was disabled) partway through a task, it showed a generic "reached
+  the iteration limit" message with no error, so it looked like the agent gave up
+  on its own. It now surfaces the actual provider error, and the "iteration
+  limit" message only appears when the run genuinely used all of its steps.
+- **The max-iterations setting is honored on capable models.** A stale internal
+  cap limited the Agent panel to 25 steps regardless of your max-iterations
+  setting, which only bit higher-capability cloud/boost models (local models
+  finished under the cap, so it was invisible there). Capable runs now use your
+  configured budget (default 50) instead of stopping early at 25.
+- **The local model's context size is read correctly.** A custom `--ctx-size` in
+  a model's llama.cpp arguments is now used as the window the app budgets
+  against, so the meter matches what the server actually runs instead of falling
+  back to a small default.
+- **Clean model names in the Cloud Boost picker and the Spending dashboard.**
+  They now use the same readable names as every other picker (for example
+  "Claude Opus 4.8 (1M context)" instead of the raw id).
+- **The Spending chart labels today on its axis and no longer clips a tall day.**
+  The daily-spend chart drew the most recent day's bar but only labeled every
+  fifth day, so the axis looked like it ended a few days early; the latest day is
+  now always labeled. A day with a large total also drew a bar that ran off the
+  top edge and overlapped the legend, so the chart now reserves room above the
+  bars for the top axis label and the legend.
+
+### Security
+- **MCP tools now go through the approval prompt in Ask and Plan modes.** A tool
+  from a connected MCP server could previously run without a per-tool prompt,
+  even one that changes external state (opening a pull request, sending a
+  message). They now ask first, the same as the built-in write tools.
+- **Air-gap mode now also covers voice transcription, inline code completion, and
+  the goal reviewer.** Each of these could reach a remote endpoint when pointed
+  at a non-local address; with air-gap on they now refuse anything that isn't
+  local, like the chat and embedding paths already did.
+- **Web fetch is hardened against DNS rebinding.** It now validates every address
+  a hostname resolves to and refuses when it can't confirm the target is public,
+  instead of trusting a single lookup.
+- **The local API and WebSocket reject requests whose Host header isn't the
+  loopback address**, closing a DNS-rebinding path that could let a web page in
+  your browser reach the local server.
+- **Prompts supplied by a shared project config are sanitized before use.** A
+  committed project config can set panel prompts; those are now stripped of
+  markup that could forge instructions in the system prompt.
+- **Output credential scanning runs before long output is truncated**, so a
+  secret split across the truncation boundary can no longer slip through.
+- **Hunk staging (git apply) is confined to your allowed project folders**, the
+  same sandbox every other git operation already used.
+
+### Fixed
+
+#### Code mode
+- **Undo now removes files (and folders) the agent created, instead of emptying them.**
+  Reverting an agent-created file in the Changes panel or the task-complete card
+  used to write the file's "before" content back, but for a brand-new file that
+  content is empty, so undo left a 0-byte file and the new folders behind. Undo
+  now deletes a created file and prunes the now-empty folders it created (a
+  modified file is still restored to its original content). Folder pruning only
+  ever removes truly-empty directories and never touches anything outside your
+  project, so no other files can be affected.
+
+#### Models & providers
+- **GGUF files dropped into the models folder now show up in the app.** Bodega's
+  model registry only tracked GGUFs added through a Model Hub download or an
+  explicit sideload, so a `.gguf` copied straight into the llama.cpp models folder
+  never appeared in Settings → llama.cpp models and couldn't be loaded by name.
+  Bodega now scans the models folder on startup and whenever you open the model
+  list, auto-registering any new GGUFs it finds (embedding and vision-projector
+  files are skipped). A manual rescan is also available so a just-copied file
+  shows up without restarting.
+- **Truncated model downloads are now caught instead of silently failing later.**
+  A GGUF download that ended short of its expected size could be marked finished,
+  then fail to load with a confusing error. Downloads now verify the final size,
+  clean up the partial file on failure, and resume from where they stopped when
+  you retry.
+- **Switching models mid-conversation now actually loads the new model.** A model
+  swap requested while a response was streaming could leave the old model in
+  place. The swap now applies reliably.
+- **Sideloaded GGUFs survive a provider switch.** A model you added by hand could
+  drop out of the list after switching providers and back. It now persists.
+- **A model deleted from disk is flagged instead of failing on load.** If the
+  file behind a registered model is gone, the list now marks it as missing rather
+  than letting you pick it and hit an opaque load error.
+- **A model that needs a vision projector but is missing one degrades gracefully.**
+  Instead of a hard failure, you get a clear message that the projector file is
+  required.
+- **Failed model pulls no longer report success.** A download that errored or was
+  cancelled could still surface as "ready." The real terminal status is now
+  reported.
+- **The embedding model is no longer picked as your chat model.** Embedding-only
+  models (for example `text-embedding-*` and `Qwen3-Embedding-*`) are excluded
+  from automatic chat-model selection.
+- **Cloud providers that hit a network error stay visible with an error.** A
+  transient connection failure could make a configured cloud provider vanish from
+  the picker. It now stays listed and shows the error.
+- **Testing a cloud API key tells transient failures apart from bad keys.** A
+  "couldn't reach the provider" result now shows amber ("try again") instead of
+  red "invalid key," so a network hiccup is not mistaken for a wrong key.
+
+#### Sessions & background runs
+- **Finished background and parallel runs no longer count against your session
+  limit.** Completed runs were still being counted, which could lock you out of
+  starting new ones until you restarted. They are now released when they finish.
+- **A background run that errors surfaces the error.** A failed background or
+  detached run could look stuck instead of reporting what went wrong. The error
+  now reaches you.
+- **Orphaned llama-server processes are cleaned up.** A llama-server left behind
+  by a crashed or cancelled run is now terminated rather than holding the port.
+
+#### Onboarding
+- **First-run setup no longer finishes silently when the model never connects.**
+  If the local model fails to come up during setup, you now get a warning instead
+  of setup completing as if everything were ready.
+- **A failed settings save during first-run is reported.** If saving your setup
+  choices fails, you are told, rather than the flow completing with stale config.
+
+#### Privacy
+- **Air-gap mode blocks the embedding model from reaching a remote host at
+  startup.** Boot no longer pre-warms a cloud embedding endpoint when air-gap is
+  on.
+
+#### Reliability
+- **Large local models get more time to load before timing out.** Big GGUFs that
+  legitimately take a while to load are no longer cut off early.
+- **The llama.cpp models list shows an error with Retry when the backend is
+  unreachable.** A failed fetch previously looked like a clean "no models
+  installed" empty state.
+
+#### Data safety
+- **A transient failure to read your project folder no longer wipes the code
+  index.** An empty scan caused by a locked or briefly-unavailable folder is
+  treated as a probable read failure, not a signal to delete the index.
+- **Deleting a session now stops its background run and removes its worktree**
+  instead of leaving the run going and the folder orphaned.
+- **A schema upgrade that rebuilds a table is now crash-safe**, so an interrupted
+  upgrade can't lose run history.
+- **Deleting a file outside the app no longer silently discards unsaved edits**
+  in its open tab.
+- **The code-search index skips a corrupt row instead of failing the whole
+  search.**
+
+#### Reliability & correctness
+- **A background model load no longer overrides a provider you switched to while
+  it was still loading.**
+- **Empty (204) responses no longer surface as save failures.**
+- **Progress streams (installs, downloads, model swaps) show an error instead of
+  spinning forever when the request fails.**
+- **The memory auto-extract off-switch now stops every auto-extraction path**, not
+  just one of them.
+- **A failed test run no longer reports as a clean pass** when the runner crashes
+  without a results summary.
+- **Cloud setup tells you when saving the API key failed** instead of showing a
+  successful connection.
+- **Per-provider model actions are correct:** the delete button only shows for
+  providers that support local deletion, the code-completion model picker clears a
+  stale model when you change provider, and session export uses the app's real
+  backend port.
+- **Smaller streaming and editor fixes:** duplicated text after a stream retry,
+  the editor theme and language switches not taking effect, and the previous
+  session's terminal output lingering after a switch.
+
+#### Concurrency
+- **Background runs can't start twice from a double-click or quick retry.**
+- **Applying a parallel-run winner stops the other runs before cleaning up their
+  folders**, avoiding corruption from a half-finished write.
+- **Chat stream locks are ownership-checked** so a finishing stream can't release
+  a newer one.
+- **The follow-up message queue claims each message atomically**, so a queued
+  message can't be processed twice.
+
+## [1.0.0-beta.31.4] - 2026-06-25
+
+Local-model and provider robustness — fixes for running custom OpenAI-compatible
+servers (vLLM, llama-swap) and for how the agent recovers from tool slips on
+smaller local models.
+
+### Fixed
+
+#### Models & providers
+- **"Auto" could pick an embeddings model as the chat model.** The filter that
+  keeps embedding-only models out of chat auto-selection missed size-suffixed
+  names (`Qwen3-Embedding-0.6B`/`-4B`/`-8B`, `text-embedding-3-*`), so on a custom
+  OpenAI-compatible endpoint serving both, Auto could land on the embedder. It now
+  recognizes those names while still leaving real chat and coder models alone.
+
+#### Agentic loop
+- **Tool calls weren't repairable on native-tool models.** When a model emitted a
+  tool call missing a required argument, only non-native models got an actionable
+  "fix the parameters and try again" nudge — native-tool models (including local
+  models served with tool calling) got just the raw error and would repeat or
+  stall until a circuit breaker stepped in. Now every model gets a nudge that names
+  the missing parameter with a per-tool hint.
+- **In-loop verification always failed on Windows.** The auto-verify step appended
+  a Unix-only no-op that isn't a command on Windows, so every verification reported
+  a failure there. It now uses a cross-platform no-op.
+
+### Added
+
+#### Models & providers
+- **Force native tool calling per model.** A new per-model control (Advanced
+  Sampling panel → "Tool calling": Auto / Force on / Force off) makes Bodega send
+  native OpenAI tool definitions to a model it didn't auto-detect as tool-capable —
+  for a capable model behind vLLM or llama-swap exposed under a custom name.
+- **MCP file-tool overlap warning.** When an enabled MCP server exposes file tools
+  that overlap Bodega's built-in file tool, MCP settings now flag it — two ways to
+  read and write files can confuse smaller local models. Detection only; nothing is
+  disabled automatically.
+
+#### Privacy
+- **Turn off auto memory-extraction.** A new `memory.auto_extract` setting (on by
+  default) stops the agent from mining facts out of conversations into the
+  persistent memory store.
+
+---
+
+## [1.0.0-beta.31.3] - 2026-06-24
+
+Verification, quality, and agent-control work, plus per-model sampling controls
+and a round of fixes from live testing. Most of the verification pieces hang off
+the existing QEL verification callback (`onQelTrace`), so they extend the
+`qel_trace` event rather than adding new protocol surface.
+
+### Added
+
+#### Verification & quality
+- **Post-loop code review.** After a creation task passes QEL, an optional
+  quality pass reviews the files the agent actually changed (SRP violations,
+  naming, obvious bugs) and surfaces the findings as a collapsible **Code
+  Quality** section inside the existing verification card. It is non-blocking —
+  it never gates completion — caps at five findings, skips files over 50 KB,
+  bails to an empty result after 5 seconds, and sanitizes every finding before it
+  lands in the trace. Off by default; turn it on with `qel.code_review`, and
+  point it at a specific reviewer model with `qel.code_review_model` (empty = use
+  the generating model). Creation tasks only. The finding shape rides the
+  existing `qel_trace` event as an optional `codeReview` field — no new SSE event.
+- **Rubric outcome grader.** Attach a free-text quality rubric to a task and,
+  after QEL passes, a one-shot grader evaluates the output against it and pins a
+  `{ verdict, score, justification }` result to the verification card. It is
+  opt-in per request (the rubric rides the request body), runs on a dedicated
+  small grader model when one is configured (`qel.grader_model`, falling back to
+  the generating model), and short-circuits to *inconclusive* under air-gap, on
+  an empty rubric, or on any grader error — it never breaks the stream. The
+  result rides `qel_trace` as an optional `rubricResult` field — no new SSE event.
+
+#### Agent control
+- **Smart approval (intent-steered auto-allow).** In Ask mode, when the agent
+  calls a low-risk read-only tool that clearly matches what you just asked for, it
+  can auto-approve the call instead of interrupting you with an approval prompt.
+  Write tools (`shell`, `file_system`, `str_replace`) are hard-blocked and always
+  require a human click. The classifier runs *last* inside the approval handler —
+  after every existing security gate — so it can only shrink the human-approval
+  surface, never widen one. This first version is a static, no-LLM classifier:
+  it auto-passes a known read-only set (`grep`, `glob`, `web_search`, `web_fetch`,
+  `query_knowledge`, `query_memory`) at high confidence and scores intent/tool
+  pairing against your last message for the rest. Off by default; enable with
+  `permission.smart_approval` and tune the bar with
+  `permission.smart_approval_confidence_threshold` (default 0.80). Both global.
+  The `tool_approval` event gains two optional fields
+  (`smartApprovalAttempted`, `smartApprovalReasoning`) — no new SSE event.
+- **`/learn` — author a skill from a source.** A new `learn_skill` tool reads a
+  source (a workspace directory via the sandboxed file-system tool, or a URL via
+  the SSRF-protected web-fetch tool), runs one constrained authoring turn to draft
+  a spec-conformant skill YAML, and validates it with the existing frontmatter
+  parser. The draft is shown as a **preview**, then — on approval — written via
+  the existing `POST /skills` route + registry reload. The write is
+  permission-gated (Ask/Plan return 403 unless the request is explicitly approved;
+  Act writes directly), and a `/learn` message is intercepted before
+  trigger-matching so a user skill named "learn" can't shadow the command. URL
+  sources are blocked under air-gap (directory sources still work locally); the
+  source is truncated to ~10 KB before authoring, a surrounding markdown fence is
+  stripped before validation, and malformed YAML returns an error rather than a write.
+- **Auto-skill capture.** After a creation task passes QEL cleanly with enough
+  tool calls to constitute a real workflow (≥5 calls, ≤1 repair iteration), the
+  run can be captured as a lightweight, user-scoped knowledge card so a similar
+  future request is auto-recalled at session start. Tool output is sanitized
+  before it lands in the card, persistence is `user_id`-scoped, and it is off by
+  default (`skills.auto_capture`). Local-only — safe under air-gap.
+
+#### Models & sampling
+- **Per-model advanced sampling.** Each installed model now has an Advanced
+  Sampling panel, opened from the new Settings control on the model row, for
+  per-model `top_p`, `top_k`, `min_p`, `repeat_penalty`, `repeat_last_n`, `seed`,
+  and `stop` overrides alongside the existing temperature, max-tokens, and
+  context controls. Samplers a given backend can't accept are greyed out per
+  provider (`top_k` and `min_p` are local-only; `repeat_penalty` and
+  `repeat_last_n` apply to Ollama), so you can't set a value the server will
+  reject. Overrides are passed through to Ollama (inside `options`) and to local
+  OpenAI-compatible servers including llama.cpp; cloud providers receive only the
+  samplers they support.
+
+### Changed
+
+#### Agentic loop
+- **Proactive auto context-compaction.** The agentic loop now compacts the
+  conversation at a configurable fill threshold at iteration boundaries, instead
+  of waiting for the hardcoded 85% emergency point or a manual `/compact`. A long
+  run trims itself before it hits the wall. Set the threshold with
+  `llm.auto_compact_threshold` (default 75; `0` disables proactive compaction and
+  leaves only the 85% emergency backstop; valid values are `0` or 50–95). The
+  compaction machinery is unchanged — the summary is still pinned as the second
+  system message for KV-cache stability, and it still falls back to mechanical
+  trimming if the summary call fails.
+
+#### Fleet & diffs
+- **Per-file churn badges in the parallel-run diff.** Each changed file in a
+  parallel-run diff column now shows `+insertions` (green) / `-deletions` (red),
+  so a reviewer can see at a glance which files carry the weight of a change.
+  Binary files show a `binary` marker instead of counts. The parallel-run status
+  feed now also carries the real per-session churn aggregate (it was hardcoded to
+  zero) — cached per session and recomputed only when the diff changes, so the
+  2-second status poll adds no git overhead. No new SSE event.
+
+#### Benchmarking & headless
+- **Aider-Polyglot benchmark prerequisites.** Groundwork for publishing an honest
+  harness-lift number: the `POST /sessions/:id/abort` route now also aborts a
+  headless run (so a benchmark harness can cancel a hung task and free the
+  concurrency slot), `HeadlessSessionRunner` honors an optional `maxDurationMs`
+  cap (a task can't wedge a batch), and a new adapter spec
+  (`source-of-truth/specs/benchmark-aider-adapter.md`) documents the run procedure
+  — fresh session per task, hidden tests as the oracle, harness-vs-raw-model LIFT.
+
+### Fixed
+
+#### Onboarding
+- **Junk emails reaching the beta list.** The first-run beta gate requires an
+  email, so a share of entries were deliberate garbage (random local part,
+  made-up TLD) typed to get past it. The first-run screen and the backend now
+  both check the address against a shared validator before it is accepted or sent
+  onward: the TLD must be a real one (a two-letter country code or a recognized
+  general TLD), and a short list of disposable providers is refused. Local
+  activation still succeeds either way — the check only keeps the contact list
+  clean. A plausible-but-fake address still passes; only a confirmation email
+  would catch that.
+
+#### Verification
+- **QEL failed correct code over absent optional patterns.** A correct creation
+  (for example, a Python module with tests) could score a failing 68/100 because
+  optional language-idiom patterns that happened to be absent still counted
+  against the score, and the Python compile/import proof only ran for server or
+  app entry points. Optional language patterns are now bonus-only — their absence
+  can no longer drag the score down — and the Python proof falls back to any
+  `.py` deliverable. The same file now passes.
+
+#### Settings
+- **Wrong temperature-schedule description.** The Agent settings note described
+  the dynamic temperature schedule backwards. It now matches what the loop
+  actually does: steadier during planning, slightly higher during file writes.
+
+---
+
+## [1.0.0-beta.31.2] - 2026-06-23
+
+The post-beta.31.1 marathon — a hands-off quality-of-life and provider-audit
+campaign (a 172-finding audit worked high-to-low), the bugs Joe surfaced from live
+diagnostics, and the preview / dev-server follow-ups.
+
+### Fixed
+
+#### Agentic loop & verification
+- **Capable models hit the iteration limit mid-build.** A cloud-Opus build of a full
+  multi-module game stopped unfinished at iteration 24. The effective budget was
+  clamped by the model profile's recommendation (xlarge was only 20), so raising the
+  user ceiling alone did nothing. Bumped the size-class recommendations (xlarge 20→35,
+  large 15→20, medium 10→12) and the default ceiling (25→50) with a migration; the
+  no-progress / degeneration circuit breakers still bound runaway loops.
+- **Project builds stranded by the boilerplate firewall.** When the contract
+  extractor mis-read a prompt (e.g. parsing "Three.js" as the lone deliverable from
+  a "build a 3D game" request), ModeFirewall blocked `package.json`, `tsconfig.json`,
+  and `vite.config.ts` as "not in the contract" — so the model made calls but wrote
+  no files and looked stuck. Load-bearing web/JS scaffold is now exempt when the
+  contract looks like a web/JS project; other ecosystems keep blocking superfluous boilerplate.
+- **Contract extractor mined prose into a garbage contract** (the root cause of the
+  above). A "build a 3D game with Three.js, steering (A/D)" prompt produced a lone
+  deliverable `Three.js`, fake routes (`/D`, `/right`, `/outrun` from inline slashes),
+  and fake functions (`steering` from "steering (A/D)"). Now: ~40 known library
+  filenames (`three.js`, `react.js`, `d3.js`, `chart.js`, …) are never treated as
+  deliverables; a route's leading `/` must not follow an alphanumeric (so "A/D" prose
+  isn't a route); and a function call must have no space before `(` (so "steering (A/D)"
+  prose isn't a function). Real filenames, `GET /api/users`, and `drawCar(ctx)` still extract.
+- **Force-completed runs over-claimed success.** On an escape-hatch / force-complete
+  exit, the summary read "Task complete: 1 file created" even when the QEL check had
+  failed — directly contradicting the "⚠️ Quality check scored X/100" warning appended
+  right below it. The lede is now an honest "Wrote N file(s):" (or "Finished — no files
+  were written."), leaving the success/failure verdict to the QEL line.
+- **Chat: duplicate turn on a truncated-stream retry + dropped queued sends.** A
+  mid-stream retry could re-post the user turn, and follow-ups queued during a run
+  could be lost on completion. Both fixed.
+
+#### Providers
+- **BYOK per-message cost showed $0** for Fireworks (`accounts/fireworks/models/<slug>`
+  never matched) and cold-cache OpenRouter, plus longest-prefix mis-pricing. Pure
+  id-resolution, no price guessing.
+- **Cloud rate-limit over-throttling.** The pre-flight budget paced every cloud
+  request against a conservative hardcoded default (Anthropic 30K ITPM), adding
+  15–45s waits per iteration for higher-tier accounts. It now learns the real
+  per-window limit from the provider's own response headers (override > observed > default).
+- **Rate-limit buckets were shared across all OpenAI-compatible providers** (one 429
+  on Groq throttled Together/OpenRouter/DeepSeek/Fireworks too) — now keyed per preset.
+- **OpenAI `complete()` parity** with `stream()`: records the actual returned model,
+  logs non-OK responses, fast-fails an unreachable host, honors `Retry-After`.
+- **Anthropic**: broadened context-overflow detection for newer/1M-context errors;
+  `complete()` connect-timeout + per-model `max_tokens` + a free (`count_tokens`)
+  health check; extended-thinking blocks now round-trip so reasoning + tool-use no
+  longer 400s. (`AnthropicProvider.ts` split under the 700-line cap to land these.)
+- **Ollama**: tool-result linkage (preserved `tool_call_id` + derived `tool_name`),
+  faster health recovery (3s fail-cache), broken-tool-template poison handling in `complete()`.
+- **OpenRouter** one-sided pricing no longer drops the model; **Claude display names**
+  keep their variant qualifiers ("Opus 4.8 Fast" vs "Opus 4.8"); **Fireworks**
+  serverless slugs resolve to their dotted profiles; **Featherless** warmup persistence
+  is idempotent; cloud-provider list completed (cohere/fireworks/qwen/kimi) + Groq onboarding.
+
+#### Preview
+- **Preview opened the wrong port.** Vite increments from 5173 (and users set custom
+  ports like 5180), but both detectors only knew 5173/5174 — so the live server was
+  invisible and a stale port showed. Both the terminal-output detector and the backend
+  port scan now cover the Vite dev/preview increment band.
+- **Preview opened the external browser instead of the in-app panel, and "open
+  preview" could hang the model.** Two fixes (Joe 2026-06-23): (1) dev servers run
+  with `BROWSER=none`, so a Vite/CRA `server.open: true` no longer pops the system
+  browser — Bodega's in-app Preview owns it. (2) A foreground dev-server command
+  (`npm run dev`, `vite`, `next dev`, …) is now auto-detected and run in the
+  background instead of blocking until the exec timeout (which had made weaker models
+  repeat themselves into the doom-loop guard). When the server prints its localhost
+  URL, the in-app Preview opens to it automatically — no second `open_preview` step.
+
+#### Security & multi-user
+- **Sandbox escape via a symlinked parent directory** closed (realpath-walk to the
+  nearest existing ancestor).
+- **Per-user scoping** for memory routes and loop concurrency; PreToolUse hooks +
+  permission profiles now also gate read-only tools (a `**/.env` deny stopped a read).
+
+#### Code mode, settings, loops, fleet, onboarding
+- Code-mode silent save/stage failures now surface; Command Sandbox dropdown persists;
+  loop scheduler no longer resets unrelated loops' timers; fleet parallel runs
+  recognize the backend `complete` status; settings import validation + reset-all
+  air-gap sync; first-run onboarding fixes + a Reset-All confirmation dialog.
+- **QEL/Drift verification card stayed pinned across sessions, with no way to
+  dismiss it.** The inline card in the agent panel only cleared on the next send,
+  so it lingered after switching to or creating a new session. Switching sessions
+  now clears the trace, and the card has a × to dismiss the block (the Drift strip
+  goes with it); it reappears on the next verification run. The dismiss is view-only
+  — the Debug → QEL tab keeps the data.
+
+### Added
+- **`open_preview` tool** — one discoverable action that auto-detects the running dev
+  server's port and opens the Preview panel (reusing the existing preview relay; no
+  command execution).
+- **`shell` `run_in_background`** — start a long-lived process (dev server, watcher)
+  without blocking the call; returns the pid + early output, keeps running until the
+  session is deleted or the app exits, tree-killed on cleanup. Same approval +
+  blocked-pattern + credential-scan guarantees as the foreground path. (Pairs with `open_preview`.)
+- **Cloud Boost default-model dropdown** — pick from the provider's curated/live model
+  list instead of typing a model id.
+
+### Changed / Docs
+- **TOOLS.md** regenerated against the registry (documents `preview_interaction`,
+  `open_preview`, `vision_query`; 27 tools).
+- **Design spec** for serializing llama.cpp stop/swap (one lifecycle lock; closes the
+  #90/#93 Windows file-lock races) — `source-of-truth/specs/`, for review before build.
+
+---
+
+## [v1.0.0-beta.31.1] - 2026-06-22
+
+A hotfix for the OpenRouter and Fireworks providers and how the app handles
+cloud models that cold-start on the first request.
+
+### Fixed
+- **OpenRouter "Cannot reach OpenRouter" banner.** A single slow health poll
+  (OpenRouter's large model catalog occasionally taking longer than its fetch
+  window) would flip the app to "disconnected" and blank the model picker. The
+  health check now needs two consecutive failed polls before showing the banner,
+  one healthy poll clears it instantly, and the cloud model-list fetch gets a
+  longer timeout so the catalog finishes and caches instead of re-failing.
+- **OpenRouter "Request timed out" on a cold model.** OpenRouter returns headers
+  immediately, then holds the stream open while it warms up the upstream model.
+  If that ran long it sent an error before any token, and the app was silently
+  swallowing it and ending with an empty reply. Pre-token stream errors now
+  surface, cloud providers automatically retry the transient ones (safe, since
+  nothing was streamed yet and the first request already warmed the model), and
+  the cloud connect window was widened so a slow-but-healthy start is not cut off.
+- **Fireworks empty model picker.** Fireworks' model-list endpoint errors for
+  serverless accounts, so the picker came up blank and the provider looked
+  broken. Bodega now ships a curated list of current Fireworks serverless models
+  (DeepSeek V4 Pro/Flash, GLM 5.2, Qwen3.7 Plus, Kimi K2.5, MiniMax M3, Nemotron
+  3 Ultra, GPT-OSS 120B/20B), each verified to chat, stream, and tool-call. The
+  key-validation probe was refreshed to a current model as well.
+
+### Added
+- **OpenRouter integration polish.** Accurate per-message cost tracking from
+  OpenRouter's live pricing; the model picker organized by vendor and popularity
+  (most-used first) with search across the full catalog; previously hidden Llama
+  and Gemini models restored to the list; and app-attribution headers so Bodega
+  One registers on OpenRouter's app directory.
+
+---
+
+## [v1.0.0-beta.31] - 2026-06-22
+
+The advanced-automation and verification wave. Named permission profiles and
+lifecycle hooks gate what the agent is allowed to do; regression contracts plus
+the new Drift Radar re-prove work you've already verified; and QEL verification
+now handles vanilla JavaScript and several more languages correctly. Also lands
+contract preview in the composer, MCP per-server tool filtering, path-scoped
+project rules, a configurable shell environment policy, custom llama.cpp
+arguments, opt-in OpenTelemetry export, air-gap attestation, and proof-carrying
+commits.
+
+### Added
+- **Lifecycle hooks (PreToolUse / PostToolUse).** You can now run your own shell
+  command before or after the agent uses a tool — to lint, format, validate, or
+  **block** a change before it happens. A `PreToolUse` hook can stop a tool (exit 2)
+  or rewrite its input; a `PostToolUse` hook observes the result. Hooks you write in
+  your own settings are trusted; hooks committed in a repo's `.bodega/config.json`
+  are **never run until you approve them** (per exact command + project — a cloned
+  repo can't run a hook behind your back). HTTP hooks are deferred for now; shell
+  hooks cover the common lint/format/gate case. Off when you have none configured.
+- **Named permission profiles.** Define reusable named rule sets that **narrow** what
+  the agent may do — deny a tool by name, or allow/deny file writes by path glob
+  (e.g. a `readonly` profile, or one that confines edits to `src/**` and blocks
+  `src/secrets/**`). A profile can only *restrict* access (never widens it) and
+  composes with Ask/Plan/Act. Off until a profile is activated.
+- **Regression contracts (the oracle store).** When a creation task passes QEL
+  verification, Bodega now remembers the verified contract (deliverables + framework
+  + the score it passed at) for that project — a durable "this worked" baseline. It
+  de-duplicates automatically and is the foundation for upcoming drift/regression
+  detection.
+- **Drift Radar.** Bodega can now re-prove the contracts it has already verified for a
+  project against your current code — telling you which previously-working deliverables
+  still hold, which **regressed**, which had their proof break, and which simply
+  **changed** (a retire candidate). Run it on demand from the new **Drift** tab in the
+  code-mode debug panel, or let an optional nightly sweep watch in the background and
+  raise a top-bar pill plus an in-app/OS notification the moment something newly
+  regresses (reusing your existing Fleet notification settings). It is **report-only** —
+  it never edits, applies, or auto-retires anything — and does no network or process
+  spawning, so it's air-gap-safe. The background sweep is **off by default** (enable it
+  under Settings, default nightly at 03:00).
+- **Custom llama.cpp arguments.** Power users can now pass raw `llama-server` flags that
+  aren't in the GUI — to tune for their exact hardware (e.g. `--n-cpu-moe`,
+  `--override-tensor`, batch sizes, `--no-mmap`). Set them globally under Settings →
+  Models → Advanced llama.cpp flags, or per-model for the currently-loaded model; a live
+  preview shows the resolved command. Custom args override the GUI fields (last-wins).
+  Flags Bodega must own (model selection, the `127.0.0.1` binding) are ignored with a
+  notice, and `--rpc` is blocked under air-gap. The setting is global-only — a project's
+  committed config can never inject server flags.
+- **Watch-mode comment triggers.** A new Loop trigger kind watches a project folder
+  and acts on inline comments when you save: `// bodega: <instruction>` runs that
+  instruction on the file, and `// fix this AI!` asks the agent to fix the nearby
+  issue. The change runs through the same QEL-verified, worktree-isolated apply gate
+  as every other Loop (parked for review by default), and the trigger comment is
+  removed after a verified change. **Off by default** behind two switches (the Loops
+  master toggle + a dedicated *Watch for comment triggers* toggle in Settings →
+  Automation); guarded against re-fire loops and double-dispatch on rapid saves.
+- **OpenTelemetry audit export (opt-in, loopback-only).** Bodega can now export its
+  existing agent-run telemetry (LLM calls, tool calls, proof gates, violations,
+  run completions) as OpenTelemetry (OTLP) trace spans to an OTLP collector you run
+  on `localhost` — for audit, compliance, or just seeing a run as a waterfall in
+  Jaeger/Grafana Tempo. It's **off by default** and **loopback-only**: the endpoint
+  is checked against a localhost allowlist before every send, so a non-loopback URL
+  is refused (even with air-gap off). No new dependencies, and free-text fields are
+  truncated before they leave the process. Enable it with `telemetry.otlp_export_enabled`
+  + `telemetry.otlp_endpoint` (default `http://localhost:4318/v1/traces`).
+- **Air-Gap Attestation.** Settings → Safety → Network Privacy now has a **Copy
+  attestation** action that produces a signed, tamper-evident record of your
+  air-gap posture: whether air-gap is on, how many outbound fetches were recorded,
+  and how many blocked outbound attempts the enforcement layers counted since the
+  app started — broken down by category (GitHub, git push, MCP, model downloads,
+  etc.). It's HMAC-signed with a secret that never leaves your machine, so the
+  record can't be edited after the fact. Honest by design: it attests *recorded
+  fetches and counted refusals*, not a guarantee that zero bytes ever left the
+  machine. Generating or verifying it makes no network calls.
+- **Proof-Carrying Commits.** When you commit QEL-verified work, Bodega can attach
+  a signed `Bodega-QEL` git trailer to the commit message — the score, pass/fail,
+  execution-proof result, model, and a hash of the contract that was verified. The
+  trailer is signed with an HMAC keyed to a secret that never leaves your machine,
+  so a "verified" claim can't be forged or edited after the fact. A new **Verify
+  history** action in the source-control panel walks recent commits and re-checks
+  each trailer, marking them verified / tampered / unsigned. Tick **Add QEL proof**
+  beside the commit button to include it. Fully local — building or checking a
+  trailer makes no network calls.
+- **Contract preview in the composer.** As you type a task, a small card shows what
+  the agent will be held to before you send — the files it's expected to produce, the
+  framework it detected, and any API routes it'll touch. It's the same execution
+  contract QEL verifies the result against, surfaced up front so you can catch a
+  misread ("it thinks this is a Flask app") before spending a run. Fully non-blocking
+  and read-only: it never starts a run or persists anything, and it stays hidden for
+  plain conversational messages.
+- **MCP per-server tool filtering + required servers.** An MCP server config can now
+  carry an `enabledTools` allowlist or a `disabledTools` denylist, so only the tools
+  you choose from a server are exposed to the agent (instead of all-or-nothing per
+  server). A server marked `required` fails fast — it isn't silently retried, and a
+  failure to connect is surfaced — so a run can't quietly proceed without a tool
+  source it depends on. Filtering sits below the air-gap/enabled security floor (it
+  can only ever remove tools, never re-admit a blocked one).
+- **Path-scoped project rules.** A project-rules file (`.bodega-rules` / `CLAUDE.md` /
+  `.clinerules` / `.cursorrules`) can now carry rule fragments that apply only when
+  the agent works on matching files — fence them with
+  `<!-- bodega:rules paths="app/**,**/*.sql" -->` … `<!-- /bodega:rules -->`. The
+  matching fragments are injected alongside your always-on global rules, chosen from
+  the files the turn touches (open editor tabs + the files you name). Rules files with
+  no fenced blocks behave exactly as before. Cuts wasted context and raises rule
+  relevance.
+- **Configurable shell environment policy.** A new `shell.env_policy` setting
+  controls which environment variables reach shell commands the agent runs:
+  `core` (default — the existing curated allowlist, unchanged), `none` (bare shell
+  essentials only), or `full` (pass everything through). `shell.env_allow_extra`
+  lets you name specific extra variables (e.g. a build token) to pass under the
+  stricter policies. The default is byte-identical to today; `full` is still
+  scanned for leaked credentials in command output. The policy is a global setting
+  on purpose — a committed project config can't widen it.
+
+### Changed
+- **Forced routing tier resolves through the backend.** When you pin a routing tier
+  with the Fast / Smart / Code pill, the model is now resolved by the backend's
+  router (its real slot config) instead of the renderer's settings mirror — so the
+  model shown in the status bar is exactly what the backend will serve. Matches the
+  new `bodega run --tier` / `/tier` in the CLI. Auto routing is unchanged; the
+  consult is short-timeout with a local fallback, so it never blocks a send.
+
+### Fixed
+- **QEL verifies vanilla JavaScript correctly.** Plain `.js`/`.jsx` deliverables (no
+  TypeScript, no tsconfig) were being checked with `npx tsc`, which fails instantly in
+  a dependency-free project and sank otherwise-correct creations to a failing score.
+  JavaScript now gets a parse-only `node --check` per file (matching the existing Ruby
+  and PHP gates), and language-pattern plus proof-gate coverage was widened to
+  `.mjs`/`.cjs`/`.php`/`.c`/`.cpp`/`.swift` so valid code in those languages isn't
+  scored zero. A missing third-party import is treated as an environment gap rather
+  than a code error, and a config-only run that writes no deliverables no longer earns
+  a free completeness pass.
+- **Stale regression contracts no longer hide new regressions.** After you retired and
+  re-verified an oracle contract, Drift Radar could keep reporting it as regressed from
+  before, masking a genuine new failure. Findings now carry a baseline timestamp and
+  the transition state resets on retire/reactivate, so a re-verified oracle reports its
+  next regression as expected.
+- **QEL and Drift results show inline in the code-mode agent panel.** They previously
+  appeared only in the Debug tab. The llama.cpp model name now renders correctly in the
+  model-role picker, and embedding-index logging no longer floods the console when
+  indexing is off or the provider isn't configured.
+- **Release downloads never 404 mid-release.** There was a 5 to 18 minute window during
+  a release where downloads returned 404: the GitHub release went public before all
+  platform assets finished uploading. Releases now upload assets into a draft and only
+  flip to public and latest once every platform completes.
+
+---
+
+## [v1.0.0-beta.30.1] - 2026-06-20
+
+A reliability hotfix for local models: your per-model context setting actually
+applies again, a full context window no longer crashes the chat, your per-model
+thinking toggle finally takes effect, setting the context too high now warns you
+instead of failing silently, and an agent that gets stuck repeating itself now
+gets caught instead of spinning.
+
+### Fixed
+- **Per-model context size applies again.** Setting a context window on an
+  individual llama.cpp model had no effect — every model silently fell back to a
+  4K window, so longer conversations broke for no apparent reason. The per-model
+  value (or, failing that, the model's own trained length) is now wired into how
+  the local server starts.
+- **A full context window no longer crashes the chat.** When a local llama.cpp
+  model ran out of context mid-reply, the overflow was misread as a fatal error
+  instead of a recoverable one, and the chat died. It's now recognized and
+  handled gracefully so the conversation can recover.
+- **Ollama context overflows are recognized too.** The same class of "out of
+  context" error coming back from Ollama is now caught and handled as an overflow
+  rather than surfacing as a generic failure.
+- **The per-model thinking toggle works on local models.** For llama.cpp models
+  that support thinking (Qwen3, DeepSeek-R1, QwQ), the reasoning control you set
+  per model was saved but never applied — the model thought (or didn't) on its
+  own regardless. The toggle now takes effect: turn it off to get fast, direct
+  answers, or on to let the model reason. Coder and embedding variants are left
+  alone, since forcing thinking on them errors.
+
+### Added
+- **Stuck agents get caught (doom-loop detection).** If the agent calls the exact
+  same tool with the exact same arguments over and over — a dead-end loop that
+  burns time without making progress — it's now nudged to change approach, and if
+  it keeps going, the run is wrapped up and graded rather than spinning forever.
+  Genuinely repeatable actions like re-running tests or shell commands are exempt,
+  so real work is never cut off.
+- **A clear warning when the context is set too high.** If you set a local model's
+  context window beyond what your hardware can allocate, the model card now warns
+  you before you load it, and if a load does fail for that reason you get a plain
+  "context window too high — lower it in Settings" message instead of a cryptic
+  crash.
+
+---
+
+## [v1.0.0-beta.30] - 2026-06-20
+
+The agent gets a memory and a sharper conscience: it learns from past work, your
+automations improve themselves, and the quality checks now fire on the runs that
+used to slip through unverified.
+
+### Added
+- **Loops learn from their own history.** A scheduled Loop now reads its recent
+  runs and carries forward what failed, so it stops repeating the same mistakes
+  every cycle. A Loop whose quality is steadily dropping auto-pauses instead of
+  grinding on. Loops can also pace themselves (backing off when a run changes
+  nothing), expire on a date, cap their total runs, and be defined in a committed
+  `.bodega/loop.md` file so a repo can ship its own automations.
+- **The agent learns across tasks.** It records what worked on past similar
+  tasks and surfaces those lessons on the next one, reflects after each run to
+  distill a short lesson, and learns from the tools you reject. All of it stays
+  on your device, scoped to you and the project, and honors air-gap. This is
+  in-context memory, not model fine-tuning.
+
+### Fixed
+- **Quality checks now fire when they matter.** The Quality Enforcement Layer
+  used to skip grading when a model thrashed and the loop force-completed, or
+  when a request was phrased loosely ("make me a dashboard") instead of naming
+  files. Those runs slipped through marked as passed. They are now graded
+  honestly with a real score and a repair path, no matter how the run ended or
+  how the request was worded. Verified live across a small local model, a large
+  local model, and a cloud model.
+
+### Changed
+- **Learning data is scoped per user.** Groundwork for shared deployments: every
+  learned rule, recorded mistake, cached tool pattern, and model-performance
+  record is now tagged to its owner so nothing crosses between accounts.
+
+---
+
+## [v1.0.0-beta.29.6] - 2026-06-19
+
+Hotfix for bugs found while battle-testing the agent against cloud providers:
+multi-file edits could fail outright, and a denied tool could still run.
+
+### Fixed
+- **Multi-file tasks no longer fail with a 400 on cloud providers.** A turn that
+  called several tools at once (e.g. editing multiple files) could error with a
+  provider 400 on OpenAI-compatible / native-function-calling backends, because
+  the assistant tool-call and tool-response messages were only reconciled one
+  way. The backstop is now bidirectional, so multi-tool turns pair up correctly.
+  Local / XML-tool providers were never affected.
+- **Duplicate tool responses are no longer emitted** for a native-function-calling
+  tool call — part of what tripped the provider 400.
+- **A denied tool is now actually blocked.** A tool named in a deny list could
+  still execute (act mode auto-approved it before the denial was checked). Denial
+  is now enforced server-side, before the tool runs, in every permission mode.
+
+### Added
+- Regression tests for the bidirectional tool-pairing backstop and the
+  server-side deny-list enforcement.
+
+---
+
+## [v1.0.0-beta.29.5] - 2026-06-18
+
+Reliability and privacy pass on the beta.29 line: local models boot cleanly,
+opening a file gets a real lightweight viewer, the editor works fully offline,
+and beta sign-up no longer loses contacts.
+
+### Added
+- **Lightweight file viewer.** Opening a file with Bodega One (a file
+  association or "Open with") now launches a fast, theme-consistent viewer
+  window instead of booting the whole app and loading a model. Markdown shows a
+  formatted preview; any file opens in a real Monaco editor with line numbers, a
+  minimap, and syntax highlighting. You can edit, save with Ctrl/Cmd+S, and get
+  an unsaved-changes prompt on close. "Open in Bodega One" promotes the file
+  into the full app when you want it.
+
+### Fixed
+- **Local-model boot reliability (llama.cpp).** Local models now recover from a
+  crashed llama-server instead of wedging, no longer fall back to Ollama once
+  you have picked a local GGUF, and load in the background so the window stays
+  responsive while weights load. Speculative-decoding (MTP) draft models resolve
+  from the correct location, with a migration for installs that used the old
+  path.
+- **Editor works fully air-gapped.** The Code-mode editor now ships its Monaco
+  bundle inside the app instead of fetching it from a CDN at runtime. With
+  air-gap on, opening the editor makes no outbound requests. The editor still
+  loads on demand, so the main bundle stays within its size budget.
+- **Beta sign-up no longer drops contacts.** First-run email capture now writes
+  every submission to a durable on-device queue before contacting Loops, then
+  retries in the background. If you were offline or hit a network error at
+  sign-up, your contact is held and sent later instead of being silently lost.
+  Air-gap still sends nothing until you turn it off.
+
+## [v1.0.0-beta.29.4] - 2026-06-17
+
+Fixes a broken llama.cpp local-model experience reported on beta.29.3.
+
+### Fixed
+- **Downloaded models now show in My Models.** A GGUF you downloaded could go
+  missing from My Models (and stay unloadable) whenever llama-server wasn't
+  already running, because the list came from the live server instead of what's
+  installed on disk. Installed GGUFs now always appear under the llama.cpp
+  preset, so you can load one even before the server starts.
+- **No more stuck "Unknown GGUF id" startup.** If a model id from a previous
+  Ollama setup was left as the llama.cpp default, the server refused to start.
+  Bodega now ignores and clears that stale id and stays idle until you pick a
+  model, instead of failing the whole local-model setup.
+- **No silent fall-back to Ollama.** With no model loaded, llama.cpp could quietly
+  switch to Ollama and then log a connection error every 30 seconds forever (even
+  when Ollama wasn't installed). It now stays on llama.cpp, idle.
+- **Clearer "Test Connection".** Testing the llama.cpp connection with no model
+  loaded now explains that a model must be loaded first, instead of a raw
+  "fetch failed".
+
+## [v1.0.0-beta.29.3] - 2026-06-17
+
+Hotfixes on top of the beta.29 routing release. beta.29.1 and beta.29.2 shipped
+as silent auto-updates; their changes are recorded here too.
+
+### Fixed
+- **Local-provider install progress.** Installing llama.cpp or Ollama from
+  Settings → Providers now streams real download progress, keeps running when you
+  leave the tab, and has a Cancel button. It no longer looks cancelled when you
+  navigate away, and the llama.cpp card no longer offers to install a binary
+  that is already present. (beta.29.2)
+- **Model downloads survive a restart.** A GGUF download that is still running
+  re-attaches its progress bar after a full app restart instead of showing an
+  idle Download button. (beta.29.3)
+- **"What's New" shows your version.** The release notes no longer render a stale
+  "Unreleased" heading on a shipped build. (beta.29.3)
+
+### Added
+- **Refreshed model catalog.** Five current GGUF models join the llama.cpp
+  catalog (Qwen3-Coder-30B, Gemma 4 12B, DeepSeek-R1-0528-Qwen3-8B, Qwen3.5-9B,
+  and Qwen3-VL-30B), and the managed llama-server binary moves to b9670.
+  (beta.29.2)
+- **Name on the first-run beta gate.** Beta activation now captures your name
+  alongside your email. (beta.29.1)
+
+## [v1.0.0-beta.29] - 2026-06-15
 
 The routing release. Other IDEs decide which model handles your request and
 call it a feature; Bodega hands you the routing table. Ordered rules you
@@ -1584,7 +2754,6 @@ Every published artifact's `node_sqlite3.node` binding inspected with `file`:
 Build verification pass blocks publication. If any binding mismatches, the release stays drafted.
 
 ### Shipped in v1.0.0-beta.13 (carried forward; never reached production)
-
 
 Everything in beta.13 is in beta.13.1. See the beta.13 entry below for the full feature/fix list (notarize restored, taskbar AppUserModelId fix, update-check semver fix, AUTOUPDATE-RESILIENCE marker-file fallback, UX onboarding criticals incl. C-3 first-run brick, ProUpgradePrompt default).
 
