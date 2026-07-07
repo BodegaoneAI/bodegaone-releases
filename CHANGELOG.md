@@ -7,6 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.31.10.1] - 2026-07-07
+
+### Fixed
+- **The Linux app now runs on mainstream distributions.** The bundled SQLite
+  native module required GLIBC 2.38, so the Linux AppImage crashed on startup
+  on every Linux older than Ubuntu 24.04 — Ubuntu 22.04 LTS, Debian 11/12,
+  RHEL 8/9, Amazon Linux. The whole app was affected (every launch loads the
+  database first). The Linux build now runs on an older-GLIBC runner (2.35)
+  and compiles the backend SQLite from source, with a build-time guard that
+  fails the release if it still needs a too-new GLIBC. Windows and macOS were
+  never affected.
+- **Questions can no longer end as a tool work-log.** Asking an orientation
+  question ("what does this project do?") could end with the model going
+  silent after its tool calls — and the reply became "Done! Here's what I
+  did:" plus a list of tool names, answering nothing. Every retry nudge was
+  gated to command-style tasks, so question turns had no rescue. Now any turn
+  that ends with tool activity but no text gets one final tools-off model
+  call to answer from what was gathered (the same rescue the iteration-cap
+  exit already had), and the last-resort static summary now leads with actual
+  findings — the codebase-map answer rides along, file reads collapse into
+  one named list, and repeated tool names dedupe.
+
 ## [1.0.0-beta.31.10] - 2026-07-06
 
 ### Added
@@ -2754,6 +2776,7 @@ Every published artifact's `node_sqlite3.node` binding inspected with `file`:
 Build verification pass blocks publication. If any binding mismatches, the release stays drafted.
 
 ### Shipped in v1.0.0-beta.13 (carried forward; never reached production)
+
 
 Everything in beta.13 is in beta.13.1. See the beta.13 entry below for the full feature/fix list (notarize restored, taskbar AppUserModelId fix, update-check semver fix, AUTOUPDATE-RESILIENCE marker-file fallback, UX onboarding criticals incl. C-3 first-run brick, ProUpgradePrompt default).
 
