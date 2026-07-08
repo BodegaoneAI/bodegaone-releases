@@ -7,6 +7,42 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.31.10.2] - 2026-07-08
+
+### Added
+- **Qwen3-Coder-Next 80B is now downloadable.** Qwen's flagship open code model
+  ships as a multi-file (sharded) GGUF, which the downloader couldn't handle
+  before. Bodega now fetches every shard, resumes each one independently if the
+  download drops, and loads them as a single model — and removing the model
+  deletes all of its shards, not just the first. Q4_K_M is about 45 GB across
+  four files (needs a 48GB+ VRAM card).
+- **Two new models in the catalog:** SmolLM3-3B, a compact reasoning + tool
+  model that runs on low-VRAM machines, and Mistral Small 3.2 24B, an updated
+  build with better instruction-following than 3.1. Both were verified against
+  HuggingFace so their downloads resolve.
+
+### Fixed
+- **GGUF downloads no longer fail with a false "size mismatch."** A complete,
+  valid download could be rejected because it was checked against a size
+  estimated from the catalog's rounded GB figure rather than the real file.
+  Downloads are now validated against the size the server actually reports, so
+  anything fully received finalizes. This is what was blocking the Qwen3.6 27B
+  download.
+- **Cloud providers you set up now show up in the model picker.** Pasting an API
+  key is meant to switch its provider on, but when the provider's entry didn't
+  exist yet — common right after a settings reset — the key saved without
+  enabling it, so providers like Anthropic, OpenRouter, DeepSeek, and Qwen
+  stayed hidden even though their keys were stored. A saved key now reliably
+  enables its provider.
+- **Local model context is no longer capped far too low.** A model's default
+  context window was sized against however much VRAM happened to be free at the
+  moment it loaded. With a browser or other apps open, that could shrink a 27B
+  model on a 32 GB card to roughly 8K tokens and leave it stuck there for the
+  session. Context is now sized against the card's total VRAM, and the value on
+  the model card matches what the running model actually uses.
+- **The moondream2 vision model downloads again.** Its GGUF files moved to a new
+  HuggingFace repository; the catalog now points at the right one.
+
 ## [1.0.0-beta.31.10.1] - 2026-07-07
 
 ### Fixed
