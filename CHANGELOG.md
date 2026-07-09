@@ -7,6 +7,111 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.31.10.3] - 2026-07-09
+
+### Added
+- **The model catalog now updates on its own, no app update needed to get new
+  models.** Bodega can pull a refreshed catalog (model list, hardware-fit info,
+  and downloadable GGUF entries) from a single Bodega-hosted file. This is on by
+  default and is a plain model list only: no telemetry, one fixed URL, and it
+  never runs in air-gap mode. There's a clear toggle in Settings under Models to
+  turn it off. When it's off, the Discover screens show a small note that new
+  models won't appear until you turn it back on or install the next app update.
+  You can still refresh manually with the button in Models.
+- **July 2026 model refresh.** Added Grok 4.5 and GLM-5.2 to the cloud model
+  list (with pricing), corrected the Kimi context length, and added two new
+  local vision models, Qwen3-VL 32B and MiniCPM-V 4.5, with their image
+  projector files so they download and run out of the box.
+- **A cleaner way to browse models.** The Discover screens now group models by
+  family (Qwen, Llama, Gemma, Mistral, DeepSeek, and so on) in collapsible
+  sections, and each model card shows capability tags (tools, vision, thinking,
+  FIM, draft, MoE) so you can see what a model does at a glance. Cards now also
+  tell you whether a model fits your GPU, and which quantization fits best,
+  before you start the download rather than after.
+- **Vision companion picker.** You can now pick which vision model pairs with
+  your text model for image questions. The picker lists your installed
+  vision-capable models with their engine, VRAM cost, and how the swap works
+  (Ollama swaps internally, llama.cpp hot-swaps the server process), and
+  remembers your choice as the default pairing.
+- **Manage your background worktrees.** The Fleet panel now shows worktrees
+  queued for automatic cleanup, lets you confirm or cancel each one, and warns
+  you when they start taking up significant disk space. A new "Manage
+  worktrees" view lists per-session storage and lets you reclaim disk on demand.
+- **Answers to questions about your code now get a groundedness check.** When
+  Bodega answers a question after reading your files, it quietly checks that the
+  answer is actually backed by what it read, flagging a reply that cites a file
+  it never opened, or that's too thin to trust. It's advisory only: you get a
+  note, never a blocked answer.
+- **Modification tasks can use your project's own lint and tests as proof.** When
+  Bodega changes or fixes existing code, it can run your project's own lint and
+  test scripts once at the end as evidence the change holds up. A clean pass
+  strengthens the result, a real failure is surfaced as an advisory note rather
+  than silently ignored. On by default, and does nothing when there's no lint or
+  test script to run.
+- **Optional second-opinion review of changes.** You can turn on a review that
+  asks a second model to check a change against what the task actually asked for,
+  as an extra set of eyes on the diff. It's advisory only and off by default.
+- **Agent-driven automation runs now show up in run history** alongside scheduled
+  loop runs, so a run started by an agent is no longer invisible after it finishes.
+
+### Changed
+- **Reasoning effort controls now match what each model actually supports.** The
+  effort control (off through max) now appears for exactly the models that honor
+  it, with the right levels per model, whether that model is your primary or one
+  you picked for a single panel. DeepSeek now maps to its real off/high/max
+  tiers, Gemini 3.x uses its new thinking levels instead of the retired numeric
+  budget, and turning reasoning off on an Ollama model now actually turns it off.
+  Models that don't support graded effort show a simple thinking on/off toggle
+  instead of levels that did nothing.
+- **The Model Roles settings were rebuilt.** Each role is now a proper model
+  picker card that shows the provider, what an empty role falls back to, and a
+  one-click reset, with a real save button that knows when you have unsaved
+  changes.
+- **Status colors are readable in light themes.** Success, warning, error, and
+  info text and banners were re-tuned so they meet contrast guidelines across all
+  four themes, fixing the green-on-green and similar washed-out cases in the light
+  themes. A test now guards these color pairs so they can't regress.
+- **Onboarding was refreshed to match the current look.** The first-run flow now
+  uses the current color tokens throughout, so the light themes render correctly,
+  and some dead onboarding code was removed.
+- **Verification messages now tell you what's blocking and what's just advice.**
+  Verification results clearly separate blocking issues from advisory notes, and
+  long diagnostic output is capped so a report stays readable instead of flooding
+  the panel.
+- **Drift Radar is now a single surface.** The separate Drift panel was folded
+  into the Debug panel's Drift tab, and when an oracle has legitimately changed
+  you now get a one-click Retire action to clear the noise.
+- **The diagnostics bundle now captures more.** Export Diagnostics now includes
+  model catalog state, the vision pairing, worktree cleanup and disk state, and a
+  summary of recent verification results, and it now catches uncaught errors and
+  promise rejections that previously slipped past the report.
+
+### Fixed
+- **Local models on llama.cpp could fail to respond.** Some models (Qwen3.5 among
+  them) use a strict chat template that rejected how Bodega packaged the prompt,
+  so every message came back as a failure. The prompt is now packaged in a form
+  those templates accept, without changing the caching behavior that keeps local
+  models fast.
+- **Switching your primary provider could leave the app in a split state.** After
+  changing your primary model provider, a chat could still be routed to the old
+  provider (for example a local GGUF sent to Ollama, which then reported the model
+  as missing), a provider card could show "offline" while its models were clearly
+  connected, and the agent panel header could keep showing the previous model
+  after a swap. Provider state is now reconciled in one place so these stay in
+  sync, and a downloaded GGUF is always recognized as a local model.
+- **Chat sends are more reliable.** A message retried after a dropped connection
+  no longer creates a duplicate, and a queued follow-up message can no longer be
+  silently dropped when you cancel or when the app restarts mid-run.
+- **The model picker no longer lists other providers' models.** A single-vendor
+  cloud provider (for example Qwen) could surface unrelated models returned by the
+  provider's API. Those are now filtered out.
+- **Local model context sizing is now regression-proofed.** The context size a
+  model card shows now matches what the inspector shows, and the default context
+  window is derived from your card's total VRAM rather than whatever happened to
+  be free at the moment, with tests so it can't quietly break again.
+
+---
+
 ## [1.0.0-beta.31.10.2] - 2026-07-08
 
 ### Added
