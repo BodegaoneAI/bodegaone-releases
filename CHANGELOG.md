@@ -7,6 +7,44 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.31.10.4] - 2026-07-09
+
+### Fixed
+- **Terminal windows no longer pop up when an MCP server fails to start.** On
+  Windows, a configured MCP server that couldn't start (for example a server
+  whose runtime isn't installed) caused a visible console window to flash open
+  every few seconds, forever. Two fixes: MCP server processes now start hidden,
+  and a server that keeps failing now backs off and stops after five attempts,
+  showing a clear "failed" status in Settings with the last error and a Connect
+  button to retry manually.
+- **Clicking a settings control no longer shoves the panel out of view.**
+  Clicking an option in sections like FIM or Codebase Embeddings could shift the
+  whole settings panel upward and leave a permanent block of empty space at the
+  bottom, in both Chat and Code mode. The browser was scrolling a container that
+  users can't scroll back; that container type can no longer be scrolled at all.
+  Dropdown pickers in Settings were also moved out of the scrolling area so an
+  open picker can't distort the panel's height.
+- The diagnostics bundle now labels MCP servers by what they actually are
+  (stdio, with or without network access) instead of a misleading "network"
+  tag, and shows a clear "failed (gave up)" status.
+
+### Added
+- **Experimental: deferred tool loading for local models.** A new setting under
+  Agent (`agent.deferred_tools`, off by default) sends the model a smaller core
+  set of tools up front and lets it pull in the rest on demand, which trims the
+  tokens spent on tool definitions every turn. It's off by default while we
+  measure it, applies only to local models when set to "local only", and never
+  changes which tools are allowed or how approvals work. If you don't turn it on,
+  nothing changes.
+
+### Internal
+- Added a test harness for the agent loop: a record and replay rig, a cache-prefix
+  stability gate, and a set of golden tasks seeded from real bugs, so a change
+  that would break the agent's behavior or its prompt caching now fails in tests
+  instead of shipping. No user-facing change.
+
+---
+
 ## [1.0.0-beta.31.10.3] - 2026-07-09
 
 ### Added
