@@ -7,6 +7,44 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.31.10.5] - 2026-07-10
+
+### Fixed
+- **Smaller models now apply code fixes instead of just describing them.** On a
+  bug-fix or edit task, a smaller model would often write out a correct-looking
+  explanation of the change but never actually edit the file, leaving you with
+  nothing. Several causes are fixed together: the built-in Debug, Generate, Test,
+  Refactor, and Perf skills were accidentally hiding the precise-edit tool from
+  the model; edits are now matched more forgivingly so a minor whitespace
+  difference in the target text no longer fails the edit outright; and when a run
+  finishes with an explanation but no edit, the agent is prompted once to apply
+  the change.
+- **Agent runs on a cloud-hosted model are no longer cut short.** The five-minute
+  safety limit was tuned for fast local models. A capable model served over a
+  cloud provider is slower per step because of network round-trips, and long runs
+  were being stopped mid-task. Cloud-served runs now get the longer budget, and
+  the time the agent spends waiting out a provider's rate limit no longer counts
+  against that budget.
+- **When an edit can't be placed, the error now shows the nearest matching lines**
+  in the file, so it's clear what to target instead of a generic "not found".
+- **Run and cost summaries now name the model that actually served the turn.**
+  A run on one model could be labeled with a different provider default, which
+  also mis-priced the per-message cost estimate.
+- **More accurate task understanding and context handling.** Task requirements are
+  now read from the project's own files (language and framework) instead of being
+  guessed from the request wording, which fixes occasional misclassification.
+  Several context-size calculations were corrected so long runs are measured and
+  trimmed against the real window, and a reported-token quirk that made long runs
+  look like they had overflowed (when they had not) is resolved.
+
+### Changed
+- **Local models start leaner.** A local model now starts with a smaller core set
+  of tools and loads the rest on demand, rather than carrying every tool's full
+  description from the first message. This frees up context on small models
+  without changing what the model can ultimately do.
+
+---
+
 ## [1.0.0-beta.31.10.4] - 2026-07-09
 
 ### Fixed
