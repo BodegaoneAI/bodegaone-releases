@@ -82,4 +82,4 @@ Compare against the `sha512` field in `latest.yml` (base64-decoded).
 
 ## License
 
-Proprietary. Free to use; a commercial license is required for commercial use. This repository exists solely to host downloads, update manifests, and install scripts at public URLs.
+Bodega One is free for everyone to download and use. A one-time $39 commercial license covers commercial use. The app is in public beta. Source licensing follows a Business Source License (BSL) after distribution; the Quality Enforcement Layer and agentic orchestration remain proprietary. This repository exists solely to host downloads, update manifests, and install scripts at public URLs.
