@@ -7,6 +7,133 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.32] - 2026-07-17
+
+### Added
+- **Code navigation in the editor.** Go to definition, hover for types and docs,
+  find all references, and parameter hints while typing a call now work in the
+  editor for TypeScript, JavaScript, and Python. The language server for a file's
+  language starts the first time you use it and unloads when idle, so it does not
+  hold memory while you are not navigating.
+- **Search your past conversations by content.** The search box in both Chat and
+  Code mode now searches the full text of your previous messages, not just titles,
+  and includes archived sessions. Results show a snippet with the match.
+- **Verification badges in the editor gutter.** After the agent proposes changes,
+  each changed file shows a pass, warning, or fail badge in the gutter from the
+  quality checks, with per-line notes when code review is turned on. Badges appear
+  on the proposed diff before you keep or discard it.
+- **A live view of what is loaded on your GPU.** A status strip shows the resident
+  model, free memory, and whether a second model would fit, so you can see the
+  headroom before loading one.
+- **Recent-projects welcome screen and per-project settings.** A richer project
+  picker with recent projects, pinning, search, and the current branch inline.
+  Each project can set its own default model. Opening a folder now asks whether to
+  trust it before applying that folder's saved configuration, which closes a hole
+  where a repository's committed config could apply automatically.
+- **Per-project air-gap.** A project can be marked to stay offline regardless of
+  the global setting. Its tool calls, shell, Git and GitHub automation, and cloud
+  model access are held local. A project can tighten to offline but can never
+  loosen a globally offline setting.
+- **Side conversation while you code.** In Code mode you can open a side chat that
+  reads your current session read-only and runs a model you choose, for a quick
+  second thread without disturbing the main run. One result can be handed back
+  into your main conversation.
+- **Run a batch of tasks overnight.** Queue several tasks to run on your own GPU
+  while you are away. Each runs verified in its own isolated copy of the project,
+  and you get one scorecard summary in the morning with per-task apply and discard.
+- **Recovery help when a run gets stuck.** When a run stalls, crashes, or hangs, a
+  small local model can diagnose why and suggest how to unstick it, and it works
+  even with no network. Off by default.
+- **Bring agents that use the open Agent Skills format.** Import a skill package
+  that uses the shared `SKILL.md` format. Imported skills are body-only by default,
+  do not auto-run on their own, and any tool or command permissions they carry are
+  shown for you to approve before they take effect.
+- **Ask a local model for a second opinion mid-run** (`consult_mixture`) and
+  **delegate a bounded subtask to a local sub-agent** (`delegate_subtask`). The
+  sub-agent works in an isolated copy of the project and its changes are quality
+  checked before they can touch your files. Both are off by default and can be
+  turned on in settings.
+- **Faster type-checking (experimental).** An optional setting swaps the
+  TypeScript check used during verification for a faster native compiler. Off by
+  default.
+- **New models in the picker.** Kimi K3 (1M context), the GPT-5.6 family (Sol,
+  Terra, and Luna), and Qwen3.7 Max are now available for the providers that
+  serve them, including OpenRouter.
+- **A dedicated QEL settings tab.** The quality-check controls moved out of
+  Experimental into their own tab, with clear toggles for execution proofs,
+  modification proofs, the semantic and answer-grounding judges, post-loop code
+  review, contract-aware review, and the experimental type-check gate.
+
+### Changed
+- **Spend caps now cover every place a cloud call can happen.** Background runs,
+  overnight batches, Git assist, and autocomplete all count toward your spend cap
+  and appear in the cost view, closing gaps where some cloud usage was not being
+  recorded.
+- **More accurate GPU fit checks for parallel runs.** The limit on how many
+  sessions can run at once now measures free memory rather than total, and
+  understands that a shared local server uses one set of weights across slots, so
+  it stops over-committing memory.
+- **The side conversation now lives in Code mode**, where a second thread while
+  you work is useful, and its button sits next to the Code panel toggle.
+
+### Fixed
+- **Local Qwen, DeepSeek-R1, and QwQ models no longer get stuck repeating
+  themselves.** These model families document that low-temperature decoding
+  causes repetition loops, but unlisted local tags were running at a low
+  fallback temperature. Every affected family now uses its vendor's
+  recommended sampling (Qwen3.x and Qwen2.5 at 0.7, DeepSeek-R1 and QwQ at
+  0.6, Nemotron Nano at 0.6, Gemma and gpt-oss at 1.0).
+- **Go to definition no longer opens a duplicate tab** when the target is a file
+  you already have open (Windows).
+- **Empty chat view fills the window** instead of leaving blank space below the
+  composer.
+- **Diagnostics settle before they are read**, so a language server that reports
+  progressively no longer briefly shows a stale error after a clean edit.
+- **The side conversation no longer crashes** when opened on a session that has no
+  side conversations yet, and its buttons now match the rest of the app.
+- **The API server meters and caps cloud spend on its streaming and agentic
+  endpoints.** Previously a client using either of those could run cloud usage
+  that was not counted toward your spend cap or shown in the cost view.
+- **Web fetch blocks a wider set of private and loopback addresses**, closing gaps
+  that could reach local-only services.
+- **File edits requested through an alternate operation name are gated behind
+  approval** like any other write.
+- **A side conversation stays strictly read-only** and can no longer trigger
+  project shell commands through verification.
+- **Editor language-server messages with non-ASCII characters** (accents, emoji,
+  CJK) no longer corrupt the language-server channel.
+- **Applying a parallel run keeps uncommitted work** in its isolated copy and no
+  longer sweeps in unrelated local changes.
+- **Local model context sizing is safer when a model shares GPU slots**, avoiding
+  an out-of-memory loop on load.
+- **Side conversation replies no longer show leftover tool text.** A smaller
+  model could leak a fragment of raw tool syntax at the end of a reply; it is
+  now cleaned before display.
+- **The side conversation now sees your open project.** It answered "no folder
+  is attached" even with a project open because the open project's path was
+  never handed to it. Its bubbles also now match Chat mode's styling.
+- **Air-gap now also blocks embeddings to a non-local Ollama address.** If your
+  Ollama URL points at another machine, air-gap mode refuses to send document
+  text there (layer 17).
+- **Cloud-routed inline fixes in the editor now count toward your spend cap**
+  and appear in the cost view.
+- **More local model families now use their vendor's recommended sampling.**
+  Llama 3.1 through 4 (0.6), Devstral (0.15), and GLM-Z1 (0.6), each confirmed
+  against the vendor's own published configuration.
+- **A folder of smaller fixes from the hardening audit:** memory recovery no
+  longer drops user scoping or embeddings, base URLs with embedded credentials
+  are rejected on save, a far-future scheduled batch fires at the right time,
+  a deferred batch item now actually waits out its backoff, mixture reference
+  drafts cannot forge section delimiters, failed delegations no longer consume
+  the retry budget, quality-report text is credential-scrubbed, and worktree
+  cleanup finds projects whose names contain special characters.
+- **Startup no longer misreports local model context limits.** Model context
+  was computed before GPU memory detection finished, logging false warnings
+  and briefly clamping context sizes on capable hardware.
+
+
+---
+
 ## [1.0.0-beta.31.10.5] - 2026-07-10
 
 ### Fixed
