@@ -31,6 +31,35 @@ Turn on air-gap mode and nothing leaves your machine. That boundary is enforced 
 
 The [changelog](CHANGELOG.md) records every release; the [latest release](https://github.com/BodegaoneAI/bodegaone-releases/releases/latest) is always current.
 
+## Features
+
+**Two modes, one app**
+- **Chat mode** streaming conversations with persistent memory, web search, file and image attachments, and tool use.
+- **Code mode** a full IDE (Monaco editor, file tree, integrated terminals, Git panel, code navigation) with AI panels for the agent, research, debugging, and advice.
+
+**The agent, verified**
+- **Quality Enforcement Layer (QEL)** the agent reads a contract from your request, writes the code, compiles it, runs your tests, boots the result and probes it, then repairs what failed. It proves the work is done instead of guessing.
+- **Verification badges** every file the agent changes gets a pass, warning, or fail badge in the editor gutter, on the proposed diff, before you keep it.
+- **Side conversations** open a read-only side chat on a second model without disturbing your main run, and hand a result back in.
+- **Loops** schedule agentic tasks (cron or interval) that run in isolated worktrees and only apply when they pass QEL.
+- **Fleet** run several agent sessions in parallel and compare or apply the winner.
+
+**Your models, your machine**
+- **Local-first** Ollama, LM Studio, llama.cpp, and vLLM, with a managed llama.cpp server, a self-updating model catalog, and GGUF downloads.
+- **Cloud when you want it** OpenAI, Anthropic, Google, Groq, and 20+ more, switchable per request. No account with us, no lock-in.
+- **Live GPU view** see the resident model, free VRAM, and whether the next model fits before you load it.
+- **Spend caps** set daily and monthly limits on cloud usage; the app meters and stops at your cap.
+
+**Private by design**
+- **Air-gap mode** turn it on and nothing leaves your machine. The boundary is enforced in the engine at every outbound path, not promised in a policy.
+- **Per-project air-gap** lock a single project offline regardless of the global setting.
+- **Workspace trust** a cloned repository's committed config cannot change agent behavior until you approve the folder.
+- **Zero telemetry** no analytics, no phone-home.
+
+**Extensible**
+- **MCP** connect Model Context Protocol servers for extra tools and context.
+- **Custom agents, skills, prompts, and keybindings.**
+
 ## Install
 
 ### Windows (recommended)
@@ -82,4 +111,4 @@ Compare against the `sha512` field in `latest.yml` (base64-decoded).
 
 ## License
 
-Bodega One is free for everyone to download and use. A one-time $39 commercial license covers commercial use. The app is in public beta. Source licensing follows a Business Source License (BSL) after distribution; the Quality Enforcement Layer and agentic orchestration remain proprietary. This repository exists solely to host downloads, update manifests, and install scripts at public URLs.
+Bodega One is free to download and use, and is in public beta. Commercial licensing and full terms are at [bodegaone.ai](https://bodegaone.ai). Source licensing follows a Business Source License (BSL) after distribution; the Quality Enforcement Layer and agentic orchestration remain proprietary. This repository exists solely to host downloads, update manifests, and install scripts at public URLs.
