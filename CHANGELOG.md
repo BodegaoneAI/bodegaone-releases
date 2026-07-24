@@ -7,6 +7,111 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.32.1] - 2026-07-24
+
+### Added
+- **Automatic model routing, with nothing hidden.** The agent can now pick the
+  right model for each step of a task on its own: a fast model for reading and
+  searching, a code model for edits, a stronger model for planning and
+  verification. It always shows which model handled what, and if a step fails
+  the quality checks it retries once on a stronger model and tells you it did.
+  Off unless you turn it on for an existing install; on by default for new ones.
+- **Point at a model on another machine.** You can now run against a model served
+  on another computer on your network. Air-gap mode still refuses any non-local
+  endpoint, so a remote model is treated as an explicitly online mode.
+- **New Qwen models.** Added Qwen3-Coder-30B (2507) and a vision-capable local
+  Qwen3.6-35B, plus the Qwen3.7-Plus cloud model.
+
+### Changed
+- **Plan reviews are readable now.** The "Review plan" card renders the plan
+  as formatted text with step and file counts in the header, instead of a raw
+  monospace dump.
+- **Streaming responses render more smoothly.** Long answers no longer re-parse
+  the whole message on every frame; completed sections are frozen while only the
+  newest text updates, new words fade in as they arrive, and code stays readable
+  while it streams. Tuned to feel good on local models.
+- **The app is lighter on your machine.** Removed a settings write that happened
+  every few seconds, shares one GPU query across the status strip instead of
+  several, and narrows a set of components that were re-rendering on unrelated
+  settings changes.
+
+### Fixed
+- **Some community models on Ollama returned nothing at all.** Models whose
+  chat template insists on a single leading system message rejected every
+  request, because the app splits its system prompt in two for cache
+  efficiency. The app now detects that rejection, merges the system prompt,
+  retries automatically, and remembers the model needs it permanently — no
+  setting to flip, nothing to redo after a restart. Verified against the
+  exact model from the report. Thanks to the user whose diagnostics bundle
+  made this a ten-minute diagnosis.
+- **No more silent stalls when the assistant wants to ask you something.**
+  A clarification prompt could sit in dead air with nothing on the wire; the
+  connection now stays visibly alive while the question waits. The assistant
+  also no longer asks "what programming language?" when your request already
+  says — a fully specified "write a SQL query" runs immediately.
+- **Local models no longer lose the plot on a simple greeting.** Saying hi in
+  code mode was being treated as a work order: the app forced tool execution
+  and loaded the message with task scaffolding, which made mid-size local
+  models invent a phantom prior task. Greetings are now recognized as
+  conversation, the extra scaffolding stays out of them, and the coaching
+  meant for genuinely weak models no longer fires for capable mid-size ones.
+- **Task lists no longer fail when the model writes them the natural way.**
+  The TODO tool rejected a properly formatted list and only accepted a quoted
+  workaround, which could stall a run in a retry loop until it hit the
+  iteration limit. Both forms are accepted now, for every tool.
+- **A run that keeps talking instead of acting now delivers its answer.**
+  After a few nudges, the app returns what the model wrote instead of burning
+  the whole iteration budget and ending with "reached the iteration limit."
+- **The GPU memory strip actually shows up now.** It was wired into a
+  component the app never renders, so it was invisible in every mode. It now
+  lives in the always-on status bar in both chat and code mode. On Windows it
+  also reads free memory directly from the NVIDIA driver tools when the
+  system query does not report it, and a machine whose GPU stats are
+  unreadable shows a muted indicator instead of nothing.
+- **Local models that write tool calls in their own invented syntax are
+  understood anyway.** Mid-size models produce a different homemade wrapper
+  around tool calls nearly every run; the app now recovers the call from any
+  of the shapes seen in live testing, and when a shape is truly unreadable it
+  shows the model the exact expected format and lets it retry instead of
+  printing the raw markup as the answer.
+- **Questions about what the assistant remembers now actually check memory.**
+  "What do you know about me" and similar questions were routed down a fast
+  path with no tool access, so the model either guessed or emitted a memory
+  lookup nothing executed. Those questions now run where the memory tool
+  works.
+- **The Smart Auto toggle now lives in one place.** The old copy in the
+  experimental tab (which could silently fight with the new Routing section
+  over the same setting, including on unrelated saves) is gone.
+- **The sidechat "inject into main" dialog is readable and clickable.** It now
+  renders above the whole app with a blurred backdrop instead of inside the
+  sidebar where panels bled through it, and a small notice above the composer
+  shows that a block is queued for your next message.
+- **A finished response can no longer be misread as cut off.** The last piece
+  of a streamed response arriving without a trailing newline was dropped,
+  which could trigger a needless retry or a false "truncated" notice.
+- **Model routing display fixes:** the final step of a run (including a
+  quality-check escalation) now appears in the routing strip, concurrent runs
+  no longer mix their steps together, and switching sessions clears the
+  previous session's context-fill readout immediately.
+- **Assorted editor fixes:** a diff-review disposal race that logged errors
+  during streaming edits, an undo that could close the review while the file
+  still held the change (it now reports the failure instead), and several
+  per-token re-subscriptions that wasted work during streaming.
+- **The GPU memory strip no longer disappears on a slow or briefly failed
+  reading.** On some machines the live GPU strip in the status bar could vanish
+  entirely instead of showing its data. It now stays visible: it shows a brief
+  "GPU" indicator while the first reading loads, keeps showing the last good
+  reading through a momentary hiccup, and only hides when the machine genuinely
+  has no readable GPU.
+- **A stored cloud key can no longer be sent to an unexpected address.** When
+  testing a provider connection without re-entering the key, the app now checks
+  that the destination is the provider's own host before attaching your saved
+  key, closing a path where a crafted address could receive it. Testing a local
+  provider with a freshly typed key is unaffected.
+- **Consistent wording and controls in the side chat.** The "add to main
+  conversation" action now uses one consistent label, and the per-project
+  offline switch now matches every other switch in settings.
+
 ## [1.0.0-beta.32] - 2026-07-17
 
 ### Added
