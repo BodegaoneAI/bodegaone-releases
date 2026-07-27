@@ -7,6 +7,428 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.33] - 2026-07-27
+
+The verification release. Bodega used to tell you your finished work had failed —
+measured against an independent grader across 89 real tasks, it solved 35 and
+reported failure on 29 of them. That is fixed, along with the reverse case, and
+about forty other things.
+
+### Added
+- **Claude Opus 5.** Available as a cloud model, along with a faster variant.
+  1M context, and the app picks the right thinking behaviour for it
+  automatically.
+- **A setting for how long a single run may take.** If you run the agent inside
+  something that stops long jobs on its own — a CI job, a test harness — you can
+  now give the agent a shorter budget than the thing running it, so it finishes
+  and reports properly instead of being cut off mid-task.
+- **A preferred provider list for OpenRouter.** OpenRouter passes your request
+  on to one of several companies that actually run the model, and it does not
+  keep you on the same one between requests. Each of them remembers your recent
+  context separately, so bouncing between them meant that memory was almost
+  never there to reuse and every request started over. You can now name which
+  ones you prefer, in order. On a long task this cuts both the bill and the
+  waiting, and if a preferred one is busy or down your request still goes
+  through elsewhere rather than failing. Off by default, and it changes nothing
+  for any other provider.
+
+### Security
+- **A secret sitting next to ordinary text is redacted again.** Shell output is
+  scanned for credentials before you or the model ever see it. The scanner
+  measured how random a run of characters looked, but it measured the whole run
+  it happened to grab — so padding a key with sixty characters of filler
+  averaged the randomness away and the key printed in full. It now measures a
+  sliding window, so filler next to a secret no longer hides it. It also strips
+  terminal colour codes before looking: a single escape sequence in the middle
+  of a token used to break every pattern we match.
+- **A detached side chat now honours the project's privacy vault.** The vault is
+  a per-project switch that keeps that project's work off the network. Which
+  project applied was decided by the app window making the request, and a side
+  chat popped out into its own window does not know which project is open — so
+  it sent nothing, and the vault quietly did not apply. The project is now
+  determined by the session itself, and a request cannot override it.
+- **Project scans stay inside the project.** A shortcut or junction inside a
+  folder pointing somewhere else on the machine was followed, and file paths and
+  code symbols from outside the project could end up in the model's context.
+
+### Changed
+- **Kimi K3 is selectable.** Moonshot's current flagship — one million tokens of
+  context, image input, reasoning always on — was already supported but was not
+  named anywhere in the setup, so there was no way to know the model id. The
+  Kimi provider now lists it.
+- **The verification and drift strips above the composer look like the rest of
+  the app.** The quality-check card painted its whole background red, amber or
+  green, which no other status surface in Bodega does; both strips now use the
+  same neutral panel with a small status dot, and sit together as one block
+  instead of two competing bars. The drift row also dropped its jargon — it now
+  says "Check whether previously verified results still hold" rather than naming
+  an internal mechanism.
+
+### Fixed
+- **Long tasks stop forgetting what they already made.** On a task with more
+  steps than fit in the model's context, Bodega summarises the earlier part of
+  the conversation to make room. That summary is written by the model, and on a
+  smaller local model it routinely dropped the record of which files had already
+  been created - so the agent made the same file again, hit the loop guard that
+  exists to stop exactly that, and stopped early with only part of the work done.
+  A five-file task finished with two. Bodega now restates, as plain fact after
+  each summarisation, which files were asked for and which already exist on
+  disk. Read from the disk itself, not from a record of what the agent believed
+  it had done.
+- **Asking for "3-5 files" is understood as a range.** When you gave a count as a
+  range, only part of it was read, so the finished-work check could be measuring
+  against the wrong number of files. Ranges are now read as ranges. And when the
+  agent cannot work out what you asked for, it says the request is incomplete and
+  asks, instead of picking a number and building against its own guess.
+- **A range of files you asked it to READ is no longer mistaken for files to
+  create.** "Merge part1.csv to part9.csv" was read as a request for nine new
+  files, because the word "to" was treated as a range marker regardless of what
+  the sentence asked for. The finished-work check then reported failures for
+  files that were never supposed to exist, and the agent went off trying to
+  produce them. We tried several times to work out from the sentence whether a
+  range meant "read these" or "create these", and it could not be made reliable,
+  so the app no longer guesses. A range written with "to" or a hyphen is taken as
+  the two files you actually named, and the task is reported as unverified rather
+  than reported as a success over a partial list. A range written with "through"
+  still expands into every file in it. Numbering that changes width partway
+  through a range, like part8 through part12, is counted correctly now.
+- **On Windows, a command that throws away its output no longer leaves a file
+  called `$null` in your project.** Commands run through the Windows command
+  prompt, where `$null` is an ordinary filename rather than a way to discard
+  output, so a command written to keep quiet quietly created a file instead. It
+  succeeded, so nothing reported anything. The output is now discarded properly,
+  and the agent is told about the correction so it stops writing it. Text inside
+  quotes is never rewritten, so a commit message that happens to mention `$null`
+  is left exactly as written, including messages containing escaped quotes,
+  which the first two attempts at this got wrong. Where it cannot be certain
+  whether the text is quoted, the command is left untouched.
+- **The Skills switches work.** Turning a skill off, or turning off automatic
+  skill activation, silently failed every time and reverted with an error. Both
+  switches sent the setting in the wrong shape, so it was rejected before it was
+  ever stored.
+- **Editing a skill no longer erases it.** The editor loaded the skill's text
+  from an address that did not exist, failed quietly, and saving then wrote the
+  empty result over your instructions. Saving is now refused when the text
+  could not be loaded.
+- **Three ways to lose unsaved work are closed.** Closing a tab from its
+  right-click menu discarded unsaved edits without asking, unlike every other
+  way of closing a tab. Quitting with unsaved files discarded them with no
+  prompt. And opening certain files — a binary, or anything very large — from
+  the breadcrumb bar, the problems list, or a terminal link produced an empty
+  editor whose first save truncated the real file on disk to nothing.
+- **A dropped connection no longer runs your task twice.** If the connection
+  broke mid-answer, the app resent the request while the original was still
+  running, so file edits and commands could be applied twice. It now asks the
+  backend whether the original is still alive and rejoins it. If it cannot
+  reach the backend to ask, it stops and tells you so rather than guessing —
+  reopen the session to see where the run got to. Resending on a guess is how
+  the work got done twice in the first place.
+- **That check now covers the case it was written for: the connection dropping
+  while the answer is still arriving.** It only handled a connection that failed
+  to open, or one that closed cleanly, so the most common break of all went
+  straight past it. Losing the network partway through a reply now does the same
+  thing as any other drop: the app asks the server whether the run is still going
+  and rejoins it. Before, it either resent the turn, which could apply the same
+  file edits twice, or sat there looking like a slow model with nothing to tell
+  you.
+- **Losing the connection in the first seconds of a reply is handled too.** When
+  the app asked the backend whether your run was still alive, the backend only
+  counted a run as started once the model produced its first output. Everything
+  before that answered "nothing is running" — and with a local model that gap
+  covers loading the model into memory and can last tens of seconds. A
+  connection lost in that window got a wrong answer and the request was sent
+  again, so the same task could run twice. The backend now claims the session
+  the moment it takes the request, not when the model first speaks, and it holds
+  that claim even if you close the window, because a run that carries on in the
+  background is still a run. Losing the connection while a local model is
+  loading no longer risks the request being carried out twice.
+- **Reloading the window asks before discarding unsaved files**, the same as
+  quitting. Ctrl+R used to throw the work away without a word.
+- **Quitting from Chat Mode asks too.** The unsaved-work check only existed
+  while the editor was on screen, so quitting from chat discarded open edits
+  silently — and made every quit from chat wait two seconds first.
+- **Preview actions do not repeat themselves after a reconnect.** Reconnecting
+  replays the run to catch you up, and anything the agent had clicked in the
+  preview was clicked a second time.
+- **OpenAI's Europe endpoint is recognised as OpenAI.** It was being treated as
+  an unknown local server, which meant a short connection timeout, no model
+  list caching, and no usage or cost reporting.
+- **"Persist memory" is gone, because it never did anything.** Nothing read it,
+  and its description claimed memories were lost when the app closed. They
+  were not.
+- **Editing a project-scoped knowledge card keeps it in that project** instead
+  of quietly making it global.
+- **The app starts even when the terminal component cannot load.** A missing
+  terminal library stopped the whole app from starting, with an unhelpful error.
+  Now everything else runs and only the terminal reports the problem.
+- **Local models are no longer cut off after five minutes.** A hard time limit
+  killed a healthy answer mid-sentence. Long answers are now judged on whether
+  they are still making progress.
+- **Streaming no longer breaks on some providers.** A usage-reporting field was
+  being sent to every recognised provider, including ones that reject unknown
+  fields outright. It now goes only to providers known to accept it.
+- **Answer-quality results no longer show a wrong score card.** A checked answer
+  displayed five red zero-scores under a green pass. Those bars do not apply to
+  answers and are gone; the actual finding is shown instead.
+- **Side chat fixes.** Switching sessions showed one conversation's messages
+  under another's heading, and the "send this to the main chat" action could
+  fire into the wrong session, or one that had been deleted.
+- **A failed run notifies you even if you walked away** — previously the
+  notification was skipped in exactly that case, leaving the session stuck on
+  "running".
+- **Finished work is no longer reported as failed.** This is the big one. The
+  quality check treated "I could not observe this working" the same as "I watched
+  this fail" — so a task the agent had genuinely completed came back marked
+  failed, the command exited with an error, automated runs refused to apply the
+  change, and the agent was sent off to repair work that was already correct. On
+  a run of 89 real-world tasks measured against an independent grader, we solved
+  35 and told you we had failed on 29 of them. Two rules caused nearly all of it:
+  a task was failed when nothing had exercised the new behaviour, and a task was
+  failed when a piece of text we expected to find in a file was not there. Now
+  only something we actually watched go wrong can fail a task. When we cannot
+  confirm the work, it says so plainly instead of calling it broken, and it does
+  not go back and redo work you have already paid for. A pass still means the
+  same thing it always did: we saw it work.
+- **A missing test no longer counts as a failed one.** The reverse case, found in
+  the same review. A check that could not run — because the environment was not
+  there, or because it timed out — was allowed to sit alongside a check that
+  really did fail, and the real failure could be outvoted. A check that observed
+  a failure now always carries.
+- **Long runs stopped ending as errors.** When the agent reached the time limit
+  you set, one path finished cleanly and reported its work, while another threw
+  the run away as if something had gone wrong. Reaching a limit you configured is
+  a normal ending, and it now reports as one, with whatever was completed.
+- **The agent gets the number of steps you asked for.** Setting a higher step
+  limit had no effect: an internal recommendation quietly overruled it, often to
+  a quarter of what was requested, and nothing said so. What you set now wins.
+- **Writing a large file could be cut off partway.** A safeguard meant to catch a
+  stalled model was watching for text coming back, but a model writing a long
+  file sends it as instructions rather than text, so a productive run looked
+  frozen and was stopped mid-write. Affects every provider except Anthropic,
+  which was already handled.
+- **Edits that would break a file are caught before they land.** A syntax check
+  already guarded whole-file writes but not the targeted edits the agent makes
+  most often. It now covers both, and only ever rejects an edit that breaks a
+  file which was fine beforehand, so it cannot block a valid change.
+
+### Changed
+- **The agent stops second-guessing capable models.** A set of safety rails
+  built for small local models were being applied to every model, on every task.
+  They capped how many times a file could be edited, turned some edits into
+  reads, and interrupted with reminders. On a capable model doing real work
+  these cost steps and sometimes ended the run early. They now step aside for
+  strong models working unattended, and stay exactly as they were for smaller
+  models and for anything you're supervising.
+- **Quality checks now act on what they find.** When a check catches a real,
+  demonstrable failure — code that doesn't compile, a command that errors — the
+  agent gets the actual error text back and fixes it, instead of the failure
+  being noted and the answer shipped anyway.
+- **Work done through the terminal now counts.** The agent often writes files by
+  running shell commands. Progress tracking and quality checks only watched the
+  file editor, so that work was invisible to them and many finished tasks were
+  never checked at all.
+- **The agent can do several things at once again.** Five separate places in its
+  instructions told it to make one tool call per message. Nothing in the app
+  required that, and it meant reading three files took three round trips instead
+  of one. It can now group independent work into a single step, while anything
+  that depends on an earlier result still waits for it. Small local models keep
+  the one-at-a-time guidance, which is where it was always meant to apply.
+- **Less filler in what the agent reads back.** Every result it got included
+  things it could not use: the command it had just sent, echoed back verbatim;
+  empty fields; timestamps it never looks at. That was roughly a tenth of
+  everything it read, and on a long task it crowds out the parts that matter.
+  Failures still carry the full detail, because that is when the extra context
+  is worth its space.
+- **Long tasks get the time they are actually allowed.** When the agent runs
+  inside something with its own time limit, it now reads that limit and sizes
+  its own work to fit, instead of applying one fixed budget everywhere. Tasks
+  that were being stopped with most of their time unused now run to completion.
+- **Project information is arranged for reuse.** The unchanging part of what the
+  agent knows about your project — your rules, the file list, the repository map
+  — now comes before the parts that change every turn. Providers that cache
+  repeated context can reuse far more of it, which is faster and cheaper,
+  and it helps local models most.
+
+### Fixed
+- **Requests could freeze for up to a quarter of an hour.** If a cloud provider
+  stalled, each retry started its own fresh timer instead of counting against
+  one deadline, so a single request could sit there for around fifteen minutes
+  with no way to interrupt it. Affected every cloud provider, including Cloud
+  Boost, where it also burned budget. There is now one deadline covering the
+  whole request, and a provider asking us to wait can no longer ask for an
+  unbounded wait.
+- **The agent gave up early on longer tasks.** Some models were being given a
+  much smaller step budget than they could actually use, because of how their
+  size was detected, and turning the limit up in settings had no effect. Models
+  now carry their own working length.
+- **The agent refused to create project files.** Standard project manifests —
+  `pyproject.toml`, `setup.py`, `Cargo.toml`, `go.mod` and similar — were
+  treated as out of scope and blocked, repeatedly, on tasks whose whole point
+  was packaging. They are now always allowed, and a refusal no longer repeats.
+- **The agent stopped reading files that were right there.** On tasks phrased as
+  "create" or "write", it could decide the folder was empty without checking,
+  and refuse to read existing files. It now checks first.
+- **Task lists didn't work outside the app.** Running the agent from the command
+  line without a session, its to-do tracking silently failed on every run.
+- **Internal notes could appear as the answer.** When the agent stopped itself
+  because it was going in circles, the internal explanation was sometimes
+  delivered as the reply. You now get a real answer, or an honest description of
+  what went wrong.
+- **Failed runs said nothing about why.** A run that ended without a verdict
+  reported no reason at all. It now reports what happened, how long it ran, and
+  how much it did.
+- **Prompts starting with a dash were rejected.** The command line treated the
+  first line of such a prompt as an unknown option and refused to start.
+- **Edits could be reported as saved without being saved.** A safety check meant
+  to make the agent read a file before overwriting it was performing the read
+  instead of the write, and then reporting success. The agent believed its change
+  had landed, hit the same failure again, and only discovered the truth by
+  re-reading the file. A change whose target text is already in the file now
+  simply applies, since finding that text proves the agent knew what was there.
+- **Edits that removed code were silently dropped.** A second check discarded any
+  rewrite that made a file smaller and reported it as done. Deleting the part
+  that does not work is often the most valuable edit there is, and file size says
+  nothing about intent. Rewrites now apply whenever the content actually differs.
+- **Python files could not be saved on some machines.** If a machine has `python3`
+  but no plain `python`, the syntax check treated the missing program as a syntax
+  error in your code and blocked every Python file the agent tried to write. It
+  now looks for both, and a missing checker means the file is saved, not blocked.
+  The same fault made a missing test toolchain read as "your code fails its
+  tests".
+- **Quality checks could pass work that was never checked.** A task that edited
+  existing files could score full marks on nothing more than the file having
+  changed, with no check actually run. Overnight and automated runs act on that
+  verdict, so unverified work could be committed as verified. A verdict now
+  requires something observed, and a run that could not be graded says so instead
+  of reporting success.
+- **Quality checks read what the agent claimed, not what was on disk.** If a file
+  was rewritten after its first write, or changed by a shell command, the check
+  looked at the earlier version. Repairs were being verified against the problem
+  they had just fixed. Checks now read the file.
+- **The agent was refused ports nothing was using.** Two ports were treated as
+  reserved whether or not anything of ours was listening on them, including when
+  you are using a cloud model and the local model server cannot be running at
+  all. The agent was told the port was taken, and spent its time hunting a
+  process that did not exist. Ports are now only held when something is actually
+  holding them, and if one genuinely is, the message says so plainly instead of
+  sending you looking.
+- **Ordinary data was being hidden as if it were a password.** The check that
+  keeps secrets out of the model's view was matching on shape rather than
+  content, so long runs of ordinary text — DNA sequences, hashes, encoded data —
+  were blanked out. On one task the agent could not see the data it had been
+  asked to work on. Secrets are still caught, including every recognisable key
+  format, but ordinary data comes through.
+- **Failures reported nothing useful.** A run that ended badly could report only
+  "Something went wrong", which was also the sole record of it. The real cause
+  now comes through. Related: provider error text was being sent on without being
+  cleaned first, which could have carried an API key from a rejected request.
+- **Runs could hang without producing anything.** Work done before the agent
+  starts — reading your project, preparing context — had no time limit, so a slow
+  step could consume an entire run in silence. Those steps are now bounded and
+  skipped if they take too long, since they are optimisations rather than
+  requirements, and a run that produces nothing at all now ends with a reason
+  instead of waiting to be killed.
+- **Long responses were being cut off.** A limit meant to stop stuck connections
+  was also ending healthy ones, because it measured elapsed time rather than
+  whether anything was still arriving. It now watches for actual silence, so a
+  model that is thinking is left alone and a dead connection is still caught.
+- **The agent stopped with its own plan unfinished.** It would write out the steps
+  it intended to take, complete the first, and finish. It now keeps going while
+  its own list has open items, within limits, and a run left with most of its
+  time unused will not finish early.
+- **Cost and token usage were missing for OpenRouter.** We were not asking the
+  provider to report usage, so spend showed as nothing at all and looked like the
+  provider simply did not supply it. Cost, token counts and cache usage now come
+  through.
+  **Worth knowing if you set a spending limit:** because that spend was not being
+  recorded, limits on your own API keys had nothing to count and never stopped
+  anything. They now work as written. The money was always being spent — it just
+  was not being counted — so if you set a limit some time ago and forgot about it,
+  this is the release where it starts taking effect.
+- **The app could sit there doing nothing at the start of a run.** The backend
+  reported itself healthy the moment it could answer at all, before its database
+  had finished opening. A request sent in that window waited with no output and
+  no error — in the worst case for twelve minutes — and because nothing had been
+  sent yet, none of the usual stall detection could see it. The health check now
+  distinguishes "running" from "ready", a request will not wait more than
+  45 seconds before saying so, and a slow start is written to the log instead of
+  being invisible.
+- **A slow provider at startup could hold up everything.** Checking the model
+  provider on launch had no time limit, so a provider that accepted the
+  connection and never replied stopped the app from starting at all. It now gives
+  up after 15 seconds and starts anyway, which is what already happened when a
+  provider was simply offline.
+- **A single command could be cut off at one minute.** Shell commands were
+  allowed to ask for up to two minutes, but were stopped at one regardless. Long
+  installs and builds died halfway, and — worse than losing the command — the
+  agent could no longer run what it had just written, so it lost the ability to
+  find its own mistakes.
+- **The count of changed files was usually zero.** It was matched against a list
+  of tool names that did not include the one the agent actually uses to write
+  files, so ordinary edits were never counted. Reports of what a run changed were
+  wrong, and anything reading that number treated finished work as if nothing had
+  happened.
+- **Tokens produced were reported far too low.** Only prose was counted, and
+  everything the agent wrote through a tool — which is most of the code it
+  produces — was invisible. Billing was never affected, but the usage figures
+  were, and they were most wrong on exactly the runs that did the most work.
+- **Runs that used up their time were never quality-checked.** Verification only
+  ran when the agent decided it was finished. A run stopped by its time limit
+  skipped the check entirely, so the work most likely to be incomplete was the
+  work least likely to be examined.
+- **A failed check could be talked past.** After one repair attempt, a failing
+  proof — code that does not run — could no longer force another, so the run
+  ended on the agent's explanation of the failure with most of its time still
+  unused. Repairs are now allowed as long as there is time for them, and the
+  check result decides, not the explanation.
+- **"The file was written" was taken from the agent's word, not the disk.** Three
+  separate places decided a deliverable existed by looking at what the agent had
+  tried to do rather than what was actually there. A write to a similarly named
+  file, or one that never landed, counted — and counting it switched off the
+  safeguard meant to catch precisely that.
+- **A stalled model could sit there for ten minutes and nothing noticed.** The
+  agent watches for a stalled connection two ways, and both were watching the
+  wrong thing. One reset its timer whenever any data arrived — including the
+  "still working" pings some providers send, which are not progress. The other
+  switched itself off permanently the moment the first word of a reply arrived.
+  So a reply that started and then stopped, while the provider kept pinging, was
+  invisible to both. Measured across a long test run, this quietly consumed more
+  than three hours of working time. Both now watch for actual progress, and when
+  one does stop a run it says what it saw instead of a bare timeout.
+- **Quality checks did not run at all on nearly half of automated runs.** There
+  are several ways an agent run can end, and only one of them was checking the
+  work. A run that hit its time limit, or ended on an error, or stopped early
+  after writing files, finished with no verdict at all — so the report said
+  nothing, and anything downstream deciding whether to apply the work had nothing
+  to go on. Every ending now produces a verdict or an explicit "could not check
+  this, and here is why". Recovered verdicts never claim success: work that could
+  not be properly checked is marked unverified and held for review.
+- **A quality check could pass work whose own tests had failed.** Two separate
+  ways: on edits, the score was a percentage of the checks that happened to run,
+  so a thinner set of checks produced a *higher* score — "the file was touched and
+  it still compiles" came out as full marks. On new code, individual checks were
+  scored and then capped at the end, so two passing checks absorbed the penalty
+  for two failing ones, and the report listed failures as blocking while the
+  verdict passed anyway. Both are closed: a check that failed because the code is
+  broken now blocks; a check that could not run because something was missing from
+  the machine still doesn't count against you, but no longer earns a pass either —
+  the run is held for review instead.
+- **The agent copied your files instead of using them.** Given a task pointing at
+  files outside the project folder, it would read them, recreate them inside the
+  project, and work on the copies — and where it could not copy something, it
+  wrote code to invent a replacement and used that. The cause was one line in its
+  instructions claiming it could not touch anything outside the project, which was
+  not true, and left it no other way to finish the job. It now works on the files
+  a task actually names, and will tell you when something is genuinely off limits
+  rather than working around it.
+- **Naming a file you wanted read could get it overwritten.** When working out
+  what a request asks for, every filename mentioned was treated as something to
+  create. Ask it to read one file and write another, and both went on the
+  create list — so the input could be overwritten, and the quality check then
+  graded the file it had just been told to clobber.
+
+---
+
 ## [1.0.0-beta.32.1] - 2026-07-24
 
 ### Added
