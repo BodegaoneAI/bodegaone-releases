@@ -7,6 +7,383 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.34] - 2026-08-05
+
+### Added
+- **Connect to hosted tool servers directly.** Bodega could only run tool servers
+  as a local program on your machine. Hosted ones - GitHub, Linear, Notion,
+  Sentry - had to be wrapped in a local shim first, if you knew to do that. You
+  can now add one by its address, with a token, from Settings. Air-gap mode
+  refuses them and says so up front rather than letting you fill in a form that
+  cannot work.
+- **Bodega Observatory.** The Map tab now shows what has been verified, not just
+  what exists. Each file carries its latest verification result, a rail lists
+  recent findings and files that have grown past their size limit, and every row
+  opens the file at the right line. Off by default; turn it on in Settings under
+  AI Behavior. Files nothing has verified show a neutral mark rather than a
+  green one - absence of a check is not a pass.
+- **Prompt caching now covers the conversation, not just the preamble.** On
+  Anthropic models, Bodega already reused the cached system prompt and tool
+  definitions between turns. The conversation itself was re-sent and re-billed in
+  full on every step of a long task. It is now cached too, and the cached region
+  rolls forward as the conversation grows. How much this saves depends on how
+  often the conversation gets summarised, since summarising rewrites the history
+  and starts the cache over.
+- **A record of what each request is actually made of.** Every request now
+  reports how its context was spent - the fixed preamble, the project state, the
+  per-turn additions, the tool definitions, and the conversation - alongside how
+  much was read from cache. Visible in the debug panel. This exists because
+  almost every claim about context size in this project was an estimate read off
+  the code rather than a measurement.
+- **Per-file verification results for edits, not just new files.** Verification
+  produced no per-file result at all when the agent modified existing files,
+  which is most real work. It does now.
+- **Two new Qwen cloud models.** Qwen 3.8 Max, Alibaba's new flagship, and Qwen
+  3.7 Flash, a cheaper vision-capable tier, are both available now through the
+  Qwen (Alibaba DashScope) provider. Qwen 3.7 Flash is also available through
+  OpenRouter.
+
+### Changed
+- **In code mode, Bodega now writes a rough version of the file you asked for
+  early, then improves it in place**, rather than working the problem out in
+  the terminal and only writing a file once it has the full answer. Debugging
+  and questions that do not name a file to produce are unaffected.
+- **Turning thinking on or off now works for cloud Qwen models.** The control
+  had no effect at all when talking to Qwen through Alibaba's own API - the
+  model kept reasoning (or not) on its own regardless of what you picked. The
+  toggle now reaches the model.
+- **The newest Qwen models were losing their reasoning by default.** Fixing the
+  toggle above introduced a second problem: once the toggle reached the model,
+  it reached it every time, including when you never touched it. Two of the
+  Qwen models this release adds show their reasoning by default on Alibaba's
+  own API; leaving the control alone was silently turning that off. It now
+  takes an explicit choice from you to turn thinking off on those models -
+  leaving the control alone keeps their own default.
+- **The paid licence activation screen has been removed.** Nobody had ever
+  purchased through it, so no existing activation is affected. Beta email
+  activation, which is how every current user signs in, is unchanged.
+- **The installer is about 40% smaller** - 909 MB down to 553 MB unpacked, and
+  the Windows installer is now 136 MB. Most of that was ours rather than the
+  framework's: unused copies of libraries that were already bundled, every
+  language pack for an English-only app, development-only packages shipped to
+  users, and - the largest single piece - stale development builds that were
+  never cleared before packaging. Earlier releases very likely shipped those
+  development builds.
+- **Files the agent edited show a neutral mark rather than a green tick.** A
+  green tick used to appear on an edited file purely because the file existed
+  afterwards, which is true of every edit whether it worked or not. Existing is
+  no longer treated as evidence of anything on an edit, so edited files show a
+  neutral mark unless something real was checked - a test, a proof gate, a
+  framework check. Newly created files are unaffected. You will see fewer green
+  ticks on ordinary work; nothing has broken.
+
+### Security
+- **A leftover benchmarking setting could no longer widen where the agent is
+  allowed to write.** A setting used only by the internal benchmarking
+  harness to let a disposable test container write outside its task folder
+  was read from an environment variable, and environment variables are
+  inherited by child processes. An earlier attempt at this fix cleared the
+  variable in the app's own startup process, but the backend can also be
+  launched on its own - by the command-line tool, for example - and that path
+  was never covered. If the variable happened to still be set in the terminal
+  a launch started from, an unattended run (an overnight batch, a background
+  session, or a headless run started from the command line) could write
+  anywhere on disk instead of being kept inside the project, with nothing
+  shown to the user. The setting is no longer read from the environment at
+  all. It now has to be passed explicitly to the backend process itself, a
+  channel nothing inherits automatically, so nothing a parent shell happens
+  to have set can reach it. Any time the write boundary is actually widened
+  is still logged.
+- **Sending data out through a one-line script is blocked properly now.** The
+  agent can run short scripts inline, and the rule meant to stop those from
+  reaching the network was checking for the wrong thing. Measured against real
+  commands it had it backwards: it blocked ordinary local work like running a
+  build, while letting four common ways of posting a file to a remote address
+  through untouched. The check now looks at where the script is actually sending
+  data. Reaching a remote address is refused; reaching a server on your own
+  machine still works, so local development is unaffected.
+- **A command written in your prompt is no longer run automatically during
+  verification in an interactive session.** This release taught Bodega's
+  verification step to also run the exact command you name in your own
+  request - "verify by running the tests," for example - so a wrong claim of
+  success can be caught against your own stated check, not just Bodega's
+  guesses. That command now only runs on its own in an unattended run (an
+  overnight batch, a background session, or a headless run started from the
+  command line), where you have already accepted that the agent executes
+  shell without asking each time. In an ordinary chat session it no longer
+  runs by itself; every other part of verification - compiling, running your
+  project's own test suite, checking the file exists and looks right - is
+  unaffected and keeps running exactly as before, in every mode.
+
+### Fixed
+- **The thinking control was missing for models installed through the app's
+  own model manager.** Models pulled or sideloaded via the app's llama.cpp
+  model manager get an internal id that the composer's Thinking toggle could
+  not read a model family from, so the control silently never appeared, even
+  for models that support thinking. The id is resolved to the real model name
+  before that check runs now.
+- **Local models on a consumer GPU ran out of room before they started work.**
+  Bodega sizes a local model's context to what your VRAM can safely hold. On a
+  large model that lands in a middle band - big enough not to count as a small
+  window, small enough to be tight - and the full fixed preamble was being sent
+  anyway, taking roughly half the available space before the conversation
+  began. Long tasks then spent their budget compacting instead of working.
+  Local runs in that band now get the short preamble. Cloud models are
+  unaffected.
+- **The model picker was showing every model a provider offers, including ones
+  that cannot hold a conversation.** A cloud provider with a large catalog -
+  Qwen/DashScope alone can list over 150 - dumped everything into one flat,
+  alphabetical list: text models mixed in with text-to-speech, image
+  generation, video, translation, and embedding models, plus half a dozen
+  dated copies of the same model. Finding the current flagship meant scrolling
+  past all of it or typing its version number from memory. The picker now
+  shows chat-capable models first, with the newest version on top, collapses
+  dated snapshots down to one row, and keeps everything else one search away
+  rather than gone - nothing is ever permanently hidden.
+- **A long task that runs out of time mid-answer is now reported as having run
+  out of time, instead of presenting a cut-off answer as complete.** Bodega
+  could stop a response partway through when its own time budget ran out, but
+  still show the partial text as if the model had finished normally.
+- **A task could be reported as passing while its own test command was failing.**
+  When a task states how to check itself, for example a test command or a build
+  step, Bodega runs it as part of verification. That result was scored as one
+  signal among several, so a high score elsewhere could outvote it and the work
+  was reported complete with the stated check still red. A failing check now
+  vetoes the pass outright, as does one that never ran. Verification is stricter
+  as a result, so some work that used to be reported as done will now come back
+  for another pass.
+- **Long tasks spent up to a fifth of their time asleep, on purpose, for nothing.**
+  Bodega paces its own requests so it does not trip a provider's per-minute
+  token limit. When a single request was larger than that whole per-minute
+  budget, the pacing code searched for a point in the next minute where the
+  request would fit, found none, and then waited the maximum 45 seconds anyway
+  before sending it unchanged. No amount of waiting can make one oversized
+  request fit inside a smaller budget, so the wait bought nothing. A long coding
+  conversation crosses that line routinely, which meant a 45-second pause on
+  most later steps. Measured across 217 recorded benchmark runs, this was 18.8%
+  of total elapsed time. Bodega now sends the request immediately in that case
+  and relies on the provider's own response and the existing retry, which is
+  what happened after the wait regardless.
+
+  Two related problems went with it. The default per-minute budget used for
+  providers that do not publish one was 40,000 tokens, well under a normal
+  agentic conversation, and is now 100,000. And a personal endpoint on your own
+  machine or network was being paced against a cloud limit it does not have,
+  which is now treated as local and not paced at all.
+
+  One trade-off worth stating: if your plan has a genuinely tight token limit
+  and your provider sends no rate-limit information with its responses, Bodega
+  now discovers that limit by hitting it rather than by anticipating it. Set
+  your real limits under `llm.rate_limit_overrides` if this affects you.
+
+  This closes the specific waste - waiting a fixed amount of time for nothing -
+  but it does not make pacing go away. A long task that generates a lot of
+  output in each step will still cross a provider's per-minute limit and still
+  wait for it; that wait is legitimate now, and how much of it you see mostly
+  tracks how verbose the model's answers are, not this fix.
+- **Claude Opus 5 Fast could not be used at all.** It was listed as a model, but
+  no such model exists: every message sent with it selected failed immediately
+  with a not-found error. Anthropic offers the faster tier as an option on the
+  standard Opus 5 model rather than as a separate model, and Bodega was not
+  requesting it. Selecting it now sends what the faster tier actually requires.
+  Note that access to it depends on your own account having the capacity
+  available; without it, Anthropic returns a rate-limit error rather than a
+  reply.
+- **Turning thinking off now turns thinking off.** On local models the control
+  had no effect at all - the setting was discarded before it reached the model,
+  which kept thinking regardless. On the newest Claude models, Off and Fast Mode
+  relied on simply not asking for thinking, which those models treat as thinking
+  on. Both now say so explicitly. On Claude models served through another
+  provider, where the control could never have worked, it no longer appears.
+- **Cloud Boost with Gemini as the boost model now respects your reasoning
+  setting.** It was silently dropped - Boost sent every request through a path
+  that only knew how to turn reasoning on or off for OpenAI-style models, and
+  Gemini's own reasoning parameter is shaped differently, so the choice never
+  reached the model. Boost requests to Gemini now carry it.
+- **Blocked commands now say which rule stopped them.** The agent was told only
+  that a command was blocked, so it would retry variations of the same thing
+  instead of trying a different approach. It now names the kind of rule and,
+  where there is one, suggests a way to do the same job safely.
+- **Searches that find nothing now explain why.** An empty result looked the
+  same whether the pattern was wrong, the path did not exist, or the search
+  could not handle a pattern spanning multiple lines. That last case now works
+  instead of silently finding nothing.
+- **DeepSeek was running with its reasoning turned off.** DeepSeek reasons by
+  default. Bodega's reasoning control defaults to "off", and for every other
+  provider that means "send no instructions and let the model behave normally".
+  For DeepSeek it meant something different - an explicit instruction not to
+  think - so anyone who had never opened that setting was using the model with
+  its headline capability disabled.
+
+  Measured on a public benchmark of 89 programming tasks: 33 solved with the
+  instruction being sent, 47 without it. Same model, same tasks.
+
+  Only the default changed. Choosing "Off" yourself still turns thinking off,
+  and a per-model or per-message choice still wins as before.
+- **The task-list reminder reaches the model again.** It was skipped whenever the
+  turn's text began with a brace, which is most turns while tools are running, so
+  on long tasks the agent gradually lost track of its own plan.
+- **The agent stopped refusing its own ordinary commands.** Three safety rules
+  were matching far more than they were written to match, and the agent could
+  lose whole tasks retrying variations of a command that was never going to be
+  allowed.
+
+  Deleting a build directory - `rm -rf build-output` inside your project - was
+  read as an attempt to wipe the entire filesystem, because the rule accepted
+  any absolute path rather than the root itself. The rule now looks at how deep
+  the path goes: the top of the filesystem is refused, a directory inside your
+  project is not.
+
+  Anything containing the letters of a shutdown command was refused, including
+  `-halt-on-error` (an ordinary LaTeX flag), `-no-reboot` (an ordinary emulator
+  flag), and searching your own logs for the word. These are now recognised by
+  position - a shutdown is a command being run, not a word appearing in a flag
+  or a search string.
+
+  Reading a private key was confused with any variable or property named `key`,
+  so `print(item.key)` in a one-line script was refused as if it were leaking a
+  certificate. The check now distinguishes a file path from a property name.
+  Reading an actual key file is still refused, and every one of these rules
+  keeps blocking the dangerous form it was written for.
+- **Verification no longer marks a check failed when it could not run.** A
+  correct, working file could be scored 35 out of 100 and reported as a failure
+  with nothing actually wrong. Checks that do not apply to what you asked for -
+  no framework to look for, no content requirements to match, no test to run -
+  were counted as zero rather than left out, so the score was measured against
+  work that was never part of the request. A one-line Python script that ran
+  correctly could not reach a passing score at any setting. Those checks are now
+  excluded from the total, and the report says "n/a" for them instead of showing
+  a zero out of thirty that reads like a failed test. Files are also credited for
+  existing even when they are short - a small file is not a missing one.
+
+  Two related repairs: a task with no framework to check was quietly awarded
+  those points for free, which is the same mistake in the opposite direction; and
+  a check that was attempted but could not be judged - a missing interpreter, a
+  timeout - no longer counts against the score, because it observed nothing.
+
+  This is a real improvement but not a complete one. The one-line script above
+  went from 35 to 50 and still does not pass. Closing the remaining gap means
+  removing a minimum-length rule on file content, and doing that let a stub Go
+  file certify as verified on a check that inspected nothing. That is worse than
+  the problem being fixed, so the rule stays until the verifier can tell the two
+  cases apart.
+- **The iteration limit you set is now the one that is used.** If you raised the
+  limit for how long the agent may keep working, that choice could be quietly
+  overruled and a longer task would stop early. The app was deciding whether you
+  had chosen a value by checking whether a row existed in its settings, which is
+  not the same question - routine internal updates write rows too, and a value
+  that happened to match the built-in default was indistinguishable from never
+  having been set. Your choice is now recorded when you make it. If you set the
+  limit before this release, save it once more so it is recorded properly.
+- **Add Server said nothing when it could not be used.** Adding a tool server
+  with the name left blank did nothing at all and gave no reason. The button now
+  says what is missing.
+- **Compacting a short conversation no longer contradicts itself.** Pressing
+  Compact announced that it was compacting, then immediately said there was too
+  little to compact. It now reports only what happened.
+- **Long answers from DeepSeek were being cut off far too early.** The two newest
+  DeepSeek models were configured to stop after roughly a twenty-fourth of the
+  output they can actually produce, and that figure was sent to the service as a
+  hard ceiling rather than just recorded on our side, so long generations really
+  were truncated. Their two general-purpose models were also carrying the context
+  size of the previous generation. Corrected against the live service rather than
+  the documentation.
+- **Your answer was being saved twice.** Every reply was written to the
+  transcript two times, by two different parts of the app that did not know about
+  each other. One copy carried the token count, the other carried the model's
+  reasoning, and neither had both. Now one copy is written, with everything on it.
+  This also means the conversation replayed back to the model no longer contains
+  each of its own answers twice. Overnight and scheduled runs get the model's
+  reasoning saved for the first time; they never had it. One case is knowingly
+  left: a reply interrupted part-way through is still written twice.
+- **Asking for help no longer depends on which language you named.** When a
+  request was too vague to act on, Bodega would ask a couple of questions before
+  starting. Whether it asked at all depended on the language: a vague Python
+  request got questions, an equally vague Bash, Node, PowerShell or shell request
+  got none. Now they all do. Well-specified requests are still left alone.
+- **Saying "C++" or "C#" no longer gets you asked what language you want.**
+  Neither name could ever be recognised, so a request naming them was treated as
+  naming nothing.
+- **Suggestions when Bodega asks which framework you want.** It could only offer
+  options for Python, TypeScript and Ruby, and stayed silent rather than ask for
+  anything else. It now covers JavaScript, Go, Java, Rust, PHP, Swift, Kotlin,
+  C, C++ and C#.
+- **Long tasks on a small context window stop losing their place every few
+  steps.** Part of the context window is taken up by fixed material that cannot
+  be summarised away. Bodega was measuring how full the window was against the
+  whole window, including that fixed part, so on a small window it summarised the
+  conversation roughly every third step and reclaimed almost nothing each time.
+  One task spent eighty-six tool calls re-reading the same nine files. It now
+  measures against the part it can actually reclaim, and will not summarise when
+  there is nothing worth reclaiming.
+- **Summaries stopped piling up on top of each other.** Each summarisation left
+  the previous summary in place and added another, so the space available shrank
+  a little more every time and the next summarisation came sooner. Summaries now
+  replace rather than accumulate.
+- **A background task could have its working copy deleted while it was still
+  running.** When the agent delegates a piece of work, it does that work in a
+  separate copy of your project. The cleanup that removes abandoned copies could
+  not tell a live one from a crashed one, and ran every fifteen seconds. It could
+  remove the copy out from under the running task, and separately could offer it
+  to you as an abandoned copy to confirm deleting. Both are fixed, and the final
+  delete step refuses a copy that is in use regardless of how it was asked.
+- **"Nothing to apply" is no longer reported when the check itself failed.**
+  Comparing a background task's work against your project could fail silently and
+  report zero changes, which is indistinguishable from a task that genuinely
+  changed nothing. It now says the comparison failed.
+- **Tools from connected servers now ask permission in chat, not only in code
+  mode.** With approvals set to ask, tools provided by a connected external
+  server ran without prompting in chat mode. They prompt everywhere now.
+- **Connected servers with more tools than fit on one page.** Only the first page
+  of a server's tools was read, so the rest silently did not exist.
+- **Server arguments containing spaces.** An argument with a space in it - a
+  Windows path, a piece of JSON - was split into pieces before being passed on.
+- **Tool results that are not text.** A result containing only an image was
+  reported as a success with nothing in it, and an error carrying no text was
+  reported as a success outright. Both now say what actually happened.
+- **Cancelling a tool now cancels it on the server.** Stopping a run, or a tool
+  hitting its time limit, left the request running on the other end with nobody
+  waiting for it. The time limit is also configurable now.
+- **Recorded checks from overnight runs.** Verification results from headless and
+  scheduled runs were never recorded, so nothing from those runs was ever
+  re-checked later for regressions.
+- **A file with almost nothing to check no longer reports a confident pass.** A
+  plain text or data file, where you did not say what it should contain, was
+  graded on two things - that it exists and is not empty - and then reported
+  100 out of 100. The score is unchanged; what it says is not. It now reads as
+  unverified rather than passed, which is what it always was.
+- **Quoting something in passing no longer invents a requirement.** Bodega looked
+  for phrases like "containing" or "with the text" anywhere in your message and
+  then treated every quoted string as required file content. Mentioning a quoted
+  name in an unrelated sentence could fail work that was correct. The phrase now
+  has to actually be describing the file it precedes.
+- **When a forbidden library costs points, Bodega says which one.** It quietly
+  deducted and moved on, so a result could come back lower with no explanation.
+- **Asking for something "without using X" is now understood.** It was ignored
+  entirely - only libraries Bodega inferred were incompatible counted, never the
+  ones you ruled out yourself. A rule you stated is now enforced; one that was
+  merely inferred still only deducts, because a guess should not block work.
+- **File ranges expand based on what is on disk.** Asking for "file1 to file5"
+  now checks whether those files already exist before deciding you meant a range
+  of new ones, instead of trying to read your intent from the sentence.
+- **A pass with nothing behind it is treated as unverified, not as a refusal.**
+  A separate check added earlier this release asks whether a pass is backed by an
+  actual test or run, not just the absence of a failure - because a whole test
+  suite silently failing to run reads the same as it not existing. That check had
+  a bug: languages whose contracts only ever run a compile check - TypeScript,
+  Go, Rust, Java, Ruby, PHP, and configuration or documentation tasks - never
+  produce anything the check counts as a test in the first place, so it was
+  refusing all of them regardless of whether the work was correct. It now tells
+  "nothing to check" apart from "checked and came back empty," and only the
+  second one counts against the work. Before this fix, that distinction did not
+  exist for those languages: every contract of theirs read as "checked and came
+  back empty," whether the work was right or not. You may still see overnight
+  Loops park instead of applying, and GitHub automation open a draft pull request
+  instead of a ready one, but now only when a test genuinely ran and came back
+  empty - not merely because the language does not have one to run.
+
+---
+
 ## [1.0.0-beta.33] - 2026-07-27
 
 The verification release. Bodega used to tell you your finished work had failed —
