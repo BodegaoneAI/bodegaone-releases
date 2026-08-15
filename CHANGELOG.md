@@ -7,6 +7,740 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.35] - 2026-08-15
+
+> **If beta.34 showed you "lost backend connection", this update is the fix.**
+> beta.34's installer shipped without the backend's runtime dependencies — the
+> app window opened, but the engine behind it could not start, which surfaced
+> as a lost backend connection on launch. Nothing was wrong with your machine
+> or your data; the release packaging omitted a directory. Updating to this
+> version replaces the broken install completely. The pipeline defect that
+> allowed it has been fixed and is now verified on every release build three
+> ways, including a start-up test of the actual packaged backend, so a build
+> with this defect can no longer be published.
+>
+> **Use the installer, not the in-app updater.** A beta.34 install has no
+> working backend, and the backend is what drives the update flow — so the app
+> may not be able to update itself. Download the installer for your platform
+> from the releases page and run it; it replaces the install in place.
+
+> **You may be asked to re-approve browser site persistence.** If you had
+> allowed the agent browser to stay signed in to sites, this version asks
+> again, once, through the real consent dialog. That is deliberate — earlier
+> builds granted persistence through a development flag rather than the
+> consent flow, so consent is being re-collected properly. It is not a bug and
+> your saved sessions are not lost; declining is what clears them.
+
+### Added
+- **Concentrate is available as a cloud provider.** It is a gateway: one API key
+  reaches 172 models across 21 upstream providers, so you can try models from
+  several vendors without opening an account with each. Add your key under
+  Settings -> Cloud API Keys as with any other cloud provider — it is stored the
+  same way, and Air-Gap mode blocks it the same way. The model picker lists the
+  full catalogue grouped and ordered by upstream rather than as one flat list.
+- **Lifecycle hooks now have a screen.** Settings has a Hooks panel where you
+  can write your own hooks, approve or revoke the hooks a project ships in its
+  own config, and — the part that was previously invisible — see the hooks that
+  failed to load and why. A typo'd event name, a missing command, or a `hooks:`
+  block left in the command-line-only config file used to be dropped with
+  nothing but a line in the log; the panel now names each one. If you have ever
+  written a hook and watched it do nothing, this is where you find out why.
+- **A permission-profile editor.** You can create and edit the named permission
+  profiles that decide what the agent may do without asking. Until now the
+  profiles existed but there was no way to author them, which made the setting
+  that selects one effectively inert.
+- **You can pick which llama.cpp build Bodega installs.** Settings -> Models ->
+  My Models -> llama.cpp engine now has a Build type dropdown listing the builds available for your
+  machine (CUDA 12, CUDA 13, Vulkan, CPU, and so on), alongside the automatic
+  pick it has always made for you. It also shows which build is actually on
+  disk, so you can tell whether a choice has taken effect rather than assuming
+  it. Previously the automatic pick was the only pick, and the setting that
+  looked like it controlled this did nothing.
+- **The agent can string a few browser steps together in one go.** Finding the
+  right page used to cost a whole turn per action — navigate, look, click, look
+  again — which is slow on a local model and burns through its patience before
+  it reaches the thing you asked about. It can now send a short sequence of
+  navigate / click / read-the-page / screenshot steps as a single request.
+  Nothing about your approvals changes: each step still asks exactly what it
+  would have asked on its own, at the moment it happens. Typing into a field and
+  submitting a form are deliberately left out of these sequences — those always
+  come to you as their own request, against the page as it stands right then. And
+  if a step doesn't find what it was looking for, the rest is abandoned and the
+  agent is told which step failed, rather than carrying on against a page it
+  never actually reached.
+- **The agent can now read a file by line number, not just by character offset.**
+  Everything else it works with already speaks lines — search results, stack
+  traces, type errors — so asking for "line 412" used to mean guessing which
+  character that was. A read can now say which line to start at and how many
+  lines to return, and the text comes back numbered like `cat -n`. Very long
+  lines (a minified bundle, a one-line JSON blob) are shown cut short with a
+  note saying so, instead of one line swallowing the whole window.
+- **Jupyter notebooks are refused politely instead of dumped.** A `.ipynb` file
+  is JSON with the code mixed into the saved output, and any plot in it is
+  stored as an image blob. Reading one filled the conversation with data nothing
+  could use. The agent now gets a short explanation of why it got no content.
+- **Muse Glimmer 30B added to the model catalog.**
+- **You can update the llama.cpp binary from Settings → Models → My Models → llama.cpp engine.**
+  Until now the only install path was the one-time onboarding screen, so once
+  you were set up there was no way to move off the build you first installed —
+  which is a problem when a newer model needs a newer build. The panel shows the
+  build you have and the build Bodega expects, and offers an update when they
+  differ. Updating is always something you ask for: nothing updates at launch or
+  in the background, and if llama-server is running you're asked to stop it
+  first — a running executable is never overwritten.
+- **The app now shows which build it's running.** Commit, timestamp, and
+  whether it's a dev or packaged build now appear in Settings → About and in
+  the diagnostics bundle.
+
+- **Ask the agent about a GitHub issue or PR without leaving the conversation.**
+  It reads the title, body, state, and for a pull request the diff and review
+  comments, as structured data rather than a scraped page. Read-only — it never
+  comments, merges, or changes anything. Large diffs are trimmed and say so, with
+  the total, so nothing is quietly cut short.
+- **Custom agents work in Chat Mode.** The same agents you've built for Code
+  Mode, selectable from the chat header, off one shared list — an agent isn't a
+  copy per mode. Chat Mode already ran the same tools underneath, so an agent
+  behaves the same in either place.
+- **The agent browser is available in Chat Mode**, in a drawer you open when you
+  want it.
+- **Take back a declined site.** If you decline "keep the agent signed in" for a
+  site, that choice sticks across restarts — deliberately. Settings → Safety now
+  lists declined sites with an **Ask again** action, so changing your mind no
+  longer means editing a file by hand.
+
+- **The agent browser has its own panel now, so you can watch a localhost preview
+  and let the agent browse at the same time.** Until now those shared one space:
+  the moment the agent opened a page, your Preview panel went blank, and you had
+  to pick one. They're separate panels now — open the Agent Browser from the
+  activity bar or with `/browser`, drag it wherever you like, and your dev server
+  keeps rendering next to it.
+- **Your chat now shows what it's about.** Bodega already gave every conversation
+  a name based on your first message, but it only ever appeared in the sidebar
+  list. The name now sits at the top of the chat itself, so when you come back to
+  a window you left open you can tell at a glance which conversation you're in.
+  Long names are shortened with the full text on hover, and a brand-new chat
+  shows nothing until it has something to name itself after.
+- **The agent can now fill in forms — search boxes, login fields, anything with
+  a text input.** Until now the agent browser could look at a page and click
+  things, but had no way to type into it, which made basic tasks like logging
+  in or searching structurally impossible. It now can, with several layers of
+  protection: a password (or other credential) field is always refused
+  outright — there's no way to approve typing into one, and the agent is told
+  to ask you to type it yourself. Any other value is scanned for things that
+  look like a leaked API key or token before you're ever asked to approve it.
+  Every single type asks for your approval, showing you the exact field and
+  value, every time — nothing is remembered from one type to the next.
+  Clicking a form's submit button after the agent has typed into that form
+  now goes through the same real-values approval a direct submit uses,
+  instead of the lighter "you're clicking a button" approval.
+
+- **Persistent site logins for the agent browser — now live, if you turn them on.**
+  `Settings → Safety → Keep the agent signed in` is enabled again, and turning
+  it on asks you to confirm first. It stays off until you do: if you had it on
+  in an earlier build, it has been reset, because that earlier switch approved
+  a feature that was never actually wired and the confirmation you'd have seen
+  didn't say what this one says.
+  Grant a site and it gets its own cookie jar, kept apart from every other site
+  and from the rest of the app. Revoke one site or all of them from Settings at
+  any time, and turning on Air-Gap mode wipes every one of them, naming the
+  sites before it clears them. Sites you decline are remembered, and there's now
+  an **Ask again** action if you change your mind.
+  This is new, and one part of it is worth saying plainly: a late fix corrected
+  a bug where a login didn't survive a restart and browsing away from a granted
+  site could write cookies into that site's jar. The fix is covered by tests but
+  hasn't been through a full manual pass yet. If a login doesn't survive a
+  restart, or you see one site's data show up under another, that's a bug worth
+  reporting rather than expected behaviour.
+- **A pending project skill now tells you it's waiting.** When you open a project
+  whose own `.bodega/skills/` haven't been approved, a chip shows how many are
+  waiting and links straight to Settings to review them. Previously the skill
+  simply didn't load and the only trace was a line in the log. Approval is tied
+  to the file's exact contents, so editing an approved skill asks again. Also
+  available from the CLI as `bodega skills trust` and `bodega skills approve` —
+  but **not yet against the engine the current CLI bundles.** The released CLI
+  pins an older engine that has no `skills/trust/approve` route, so those two
+  commands error until the next CLI release refreshes the engine. Approve from
+  the app in the meantime.
+
+- **Agent browsing beyond localhost — opt-in, off by default.** The agent
+  could already drive your own dev server in the Preview tab; it can now,
+  when you turn on `browser.widened_enabled` in Settings, navigate to real
+  websites too — in an isolated, non-persistent browsing session with no
+  shared cookies or storage with the rest of the app. Every new site needs
+  your one-time approval. Two things always ask again separately, even on an
+  already-approved site: submitting a form, and loading an address whose
+  query string carries data you didn't see in the original approval — a
+  mechanical guard against a page quietly appending your data to a link.
+  Private/local-network addresses stay blocked no matter what. Never
+  available under Air-Gap mode, and turning Air-Gap on mid-session
+  immediately tears the browsing session down. This is opt-in with real
+  residual risk — see the in-app Help page on agent tools for the honest
+  version, not a "solved" one. Turn it on/off in Settings → Safety → Agent
+  Web Browsing (non-localhost) — enabling asks for confirmation first, and
+  the change takes effect on your next new chat or session, not mid-turn.
+- **Ask Bodega about Bodega.** The agent knew almost nothing about the product
+  it runs inside, and was told not to discuss it — so a question like "can this
+  read PDFs?" got a shrug, or worse, a confident guess. It now ships the help
+  documentation as searchable data and can look things up, answering about its
+  own tools, modes and settings from what is actually documented rather than
+  from imagination. It still will not repeat your project paths, your settings
+  values or anything sensitive back to you.
+- **Approval learning: you can now accept the suggestions it makes.** Approval
+  decisions you make during agent sessions are saved locally to your database,
+  and after you approve the same kind of moderate-risk shell command five
+  times in Ask mode with no rejections, Bodega suggests learning it. Review
+  and accept or dismiss suggestions in Settings → Privacy & Safety, and revoke
+  any accepted rule at any time — revoking takes effect immediately, on the
+  very next matching command. Accepting only changes Act mode: Ask mode always
+  asks you first, no matter what you've accepted. Accepting a rule is
+  app-only — a headless CLI run can never widen its own permissions.
+
+- **Bodega can read PDFs, Word, Excel and PowerPoint files.** It used to decode
+  any file you pointed it at as text — a PDF came back as a page of garbled
+  characters, reported as a successful read, with nothing to tell the agent or
+  you that it hadn't actually read anything. It now converts PDF, DOCX, XLSX
+  and PPTX (plus RTF and legacy `.doc`/`.ppt`/`.xls`) to readable text, both
+  when the agent opens a file itself and when you attach one to a chat message.
+  Scanned (image-only) PDFs and encrypted files are correctly reported as
+  unreadable rather than silently producing garbage. Other file types the agent
+  can't decode — images, unknown binaries — are now named and sized instead of
+  being fed through as mojibake.
+- **The command-line tool can now propose and apply a small memory or persona
+  change.** `bodega refine "<instruction>"` computes what it would change and
+  shows you before doing anything; add `--apply` to actually write it, and the
+  change can be undone with `bodega harness revert`. This had been built and
+  tested in the command-line tool for a while with nothing on the other end
+  to answer it. **The app half is now here — but the released CLI still bundles
+  an older engine that lacks the `harness/refine` route**, so `bodega refine`
+  errors until the next CLI release refreshes that pin. It works end to end
+  against this app build; it does not work end to end from the shipped CLI yet.
+- **You can now install plugins from inside the app.** A plugin bundles a set
+  of skills and MCP servers into one folder or `.zip` (the same open format
+  other AI tools use, so plugins built for elsewhere generally work here too).
+  Settings → Integrations → Plugins lets you pick a folder or zip, shows
+  exactly what it contains — every skill, every MCP server, any elevated
+  permissions it's asking for — before anything is written, and nothing is
+  approved automatically: you tick the specific permissions you want to grant,
+  skill by skill. An MCP server that needs network access while air-gap mode
+  is on is flagged right in the preview instead of failing silently. Installed
+  plugins are listed with what they added, and can be removed — removal only
+  touches what that plugin itself installed, never something you separately
+  created under the same name. This was previously CLI-only.
+- **"Manage allowed sites" in the agent browser's overflow menu**, in both Code
+  Mode and Chat Mode. It opens Settings → Safety directly, so changing which
+  sites the agent may stay signed in to no longer means hunting through
+  settings from a different panel. It reads and writes the same grant list the
+  consent card does — there is no second place where permissions live.
+- **Settings now say which mode they apply to.** Every settings section is
+  labeled Code Mode, Chat Mode, or both, and a new help page spells out what
+  each one actually affects in each mode. Nothing moved and nothing changed
+  behaviour — this is labeling, because "does this apply to my chat?" was not
+  answerable from the UI before.
+
+### Changed
+
+- **The "Coming soon" strip is gone from Models -> Discover.** Every model listed
+  there is now one you can actually download. The two small draft models that
+  were sitting behind that label — Qwen 3 1.7B and Llama 3.2 1B, used to speed up
+  a larger model — are downloadable, because the feature they were waiting on has
+  shipped. The one entry that had no downloadable version at all was removed.
+
+- **The beta period no longer expires.** Builds carried a hard cutoff of
+  2026-11-01, after which activation returned an error and the app showed a
+  terminal lock screen. That's gone — not pushed further out, removed. If you
+  activated under any earlier cutoff, you come back active on your next launch;
+  nothing to re-do.
+
+- **Malformed tool calls are now counted.** When a model produces a tool call
+  Bodega cannot parse, the recovery costs a full step of the task. That has
+  always been true and never been measured. It is now recorded per model tier, so
+  the decision about whether to enforce stricter output formats can be made from
+  data instead of a hunch.
+
+### Fixed
+- **macOS builds sign again, and Linux installers drop a dead native binary.**
+  The document converter added in this cycle ships one native build per
+  platform; the packaging step was copying its symlinks in a way that pointed
+  outside the app bundle, which macOS code signing rightly refuses, and Linux
+  installers were carrying a second copy of the converter built for a C library
+  they can never use. Packaging now keeps links relative, ships exactly one
+  converter build per installer, and fails the release build loudly if either
+  rule is ever broken again — including on the Intel-Mac build, which is
+  produced on Apple-silicon machines and previously picked up the wrong build.
+- **An approval card could show one command and approve a different one.** When
+  two tool calls of the same kind were waiting for approval at once, both rows
+  showed a card, and both cards resolved the same single pending approval — so
+  the row reading `rm -rf build` could carry the Allow button belonging to the
+  `ls -la` request. A card now binds to the exact request it is showing, and to
+  the session it was raised in, so an approval in Chat Mode can no longer appear
+  over a Code Mode conversation.
+- **A conversational turn that tried to use a tool no longer answers with a
+  blank bubble.** Some questions are answered without tools; if the model
+  reached for one anyway, the attempt was discarded and you saw an empty reply,
+  or worse, "I'll open that page now" with nothing behind it. Bodega now says
+  plainly that the step was not carried out, and asking again runs it. Questions
+  phrased as an instruction ("yes, and take a screenshot") are also routed to
+  the tool-capable path in the first place.
+- **A custom agent's own instructions reached the model on some turns and not
+  others.** On a small context window Bodega builds a shorter system prompt, and
+  that shorter version left out the custom agent's prompt entirely — along with
+  the built-in Chat/Code instructions. Everything else about the agent still
+  worked, so it looked active while behaving like the default one. It affected
+  local models only, and only since the August context-window change, which is
+  why the same agent behaved correctly on a cloud model and lost its personality
+  on a local one in the same conversation. The shorter prompt now carries those
+  instructions, trimming them if they are very long rather than dropping them,
+  and says so in the log when it trims.
+- **A custom agent that points at a model you do not have now says so.** If the
+  model a custom agent is pinned to was never downloaded, selecting the agent
+  quietly fell back to whatever was loaded. Settings -> Custom Agents and the
+  agent picker both flag the missing model now.
+- **When llama.cpp fails to start, you get the reason.** The server's own error
+  output was being read and thrown away, and the automatic retry a couple of
+  seconds later erased it — so a model that crashed on load looked the same as
+  one that started fine. The error is now kept, written to the log, shown in the
+  model status, and included in a diagnostics bundle. Stopping a model on
+  purpose is still reported as a stop, not a crash.
+- **Model status updates as soon as a model finishes loading**, instead of on
+  the next refresh up to 30 seconds later. The periodic refresh is still there
+  as a fallback.
+- **The agent browser records both answers when it decides about a redirect.**
+  It only ever wrote down refusals, so "allowed" and "the check never ran" left
+  the same trace — no trace. The same was true of declining to open a browser
+  under Air-Gap, which claimed in its own source to be recorded and was not.
+- **The transcript now names the model that actually answered.** If a provider
+  is set to serve one model at a time, or a local server already has a different
+  model loaded, your request is quietly answered by whatever is resident. The
+  assistant message is written the moment you press send — before any reply
+  exists — so it could only ever be stamped with the model you *asked* for, and
+  nothing corrected it afterwards. A message could therefore carry a model name
+  that had nothing to do with it. The name is now rewritten from what the
+  provider reports on the wire, and only when the two differ.
+- **You are told when your model choice is overridden.** A single-active-model
+  provider silently substituted its own default on every turn. A warning for
+  exactly this case had been built and was never displayed anywhere. It is now a
+  warning toast, once per response, naming both models and where to change them.
+- **The browser no longer reports "navigated" for a page that never opened.**
+  The agent's navigate said it had succeeded as soon as the request was handed
+  off, not when a page actually appeared. A site that redirects — reddit.com to
+  www.reddit.com, for instance — could have its redirect cancelled, leave the
+  panel empty, and still be reported as loaded, at which point the agent would
+  describe a page it had never seen. Success now means a document loaded. A load
+  that dies reports the failure and tells the agent not to claim the page is
+  open; a load still in flight is reported as neither.
+- **Eight local models were hidden from Discover on 32 GB machines.** Catalog
+  entries carry a minimum-RAM figure, and a 32 GB machine does not report 32 GB
+  — firmware reserves some, so the operating system sees about 31. Every entry
+  needing 32 GB therefore failed its own check and was filtered out of the list,
+  including Qwen3.8 27B and a model some machines were running at the time. The
+  minimum is now checked with a small tolerance, so a machine is not excluded by
+  the number printed on its own box. Genuinely too-large models are still hidden.
+- **Vision models no longer hand out a context window they cannot back.** A
+  vision model loads two things onto the card: the weights and a separate image
+  projector. Bodega only counted the weights when it decided how big a default
+  context to ask for, so every vision model in the catalog sized its cache
+  against between half a gigabyte and two gigabytes of memory that was already
+  spoken for. The projector is now measured on disk and subtracted first. On a
+  24 GB card with a 1.4 GB projector this is about 6,000 tokens of window that
+  were previously promised and not there. **Still open:** the "fits on your
+  machine" badge in Discover, and the VRAM timeline, are both still weights-only
+  — a vision model can show as fitting and then start with a squeezed context.
+  Widening that badge changes which models every machine is offered, so it is
+  deliberately not in this release.
+- **DeepSeek's reasoning model was billed at roughly six times its real rate.**
+  `deepseek-reasoner` is served as the cheaper V4-Flash model, but the spend
+  tracker still priced it against the retired R1 rate. It now shares Flash's
+  price entry, and Bodega notices in general when a provider serves a different
+  model than the one asked for instead of quietly pricing the one it asked for.
+- **Scheduled and cached prices are now understood.** Rates that change on a
+  date, and peak/off-peak windows, used to be flattened into a single number
+  that went wrong the day the schedule changed; cached input tokens were billed
+  at the full input rate. Both are now priced against the clock the usage was
+  stamped with. **Still open:** Anthropic charges 1.25x for writing to the cache
+  and there is no rate for that yet, so a cache-cold Anthropic turn still reads
+  slightly cheaper than it was.
+- **Switching llama.cpp build types actually reinstalls now.** Once you were on
+  the current build, asking for a different build type quietly did nothing and
+  reported success — the download was skipped because only the version number
+  was being compared.
+- **Two GPUs are no longer read as one.** llama.cpp spreads a model across
+  every card of the same brand, and Bodega already added up their total memory,
+  but the "how much is free right now" reading still came from a single card —
+  so a two-card machine could be told a model wouldn't fit when it would. Free
+  memory is now measured across the same set of cards, and only when every one
+  of them reports a figure; if any card is silent, Bodega falls back to the
+  single-card reading rather than publishing a number that is quietly short by
+  a whole GPU.
+- **A malformed read position is refused instead of silently reading the top of
+  the file.** Asking to read from `"2abc"` or from position 1.5 used to be
+  quietly turned into position 0, so the agent got the beginning of the file
+  back and had no way to know it had asked for something else — and would ask
+  again the same way.
+
+- **Saving a memory, project memory, or project instructions could fail
+  outright** on a database that had already taken a recent update. Fixed.
+- **Unified-memory machines (DGX Spark, Strix Halo, and similar) were told
+  they had no GPU.** Hardware detection expected a separate GPU and CPU
+  memory pool; on a machine where they're the same pool it reported zero
+  GPU layers, labeled the machine "No GPU detected — Minimal tier," marked
+  every catalog model as not fitting, and recommended the smallest model
+  available. It now recognizes this class of hardware. Apple Silicon was
+  already handled, but its usable-memory estimate assumed all system RAM
+  was available to the model — Metal actually grants roughly 70-75% of it,
+  so the estimate is now closer to what's real.
+- **Multi-GPU: llama.cpp now gets credit for pooled VRAM across matching
+  cards.** It splits a model across same-vendor GPUs by default, but
+  Bodega's fit and recommendation checks only ever counted the largest
+  single card, so a model that genuinely fit across two cards was marked as
+  too big. Ollama still gets only the largest single card, because that's
+  how it actually loads a model. Cards from different vendors are never
+  pooled together.
+- **A model that needs a newer llama.cpp than you have is now blocked
+  before download**, with a message naming the build it needs and the one
+  you're running. Muse Glimmer 30B needs a specific build; loading it on an
+  older one crashed the local model server.
+- **MLX no longer appears as a provider on Windows and Linux** (it's
+  Apple-Silicon only), and MLX auto-detection can no longer mistake a
+  running llama.cpp server for an MLX one — they were sharing the same
+  port.
+- **A relative file path read with no project attached now says which
+  folder it actually resolved against**, instead of silently reading from
+  wherever the path happened to land.
+- **Agent-browser screenshots and tool calls used to disappear from the
+  transcript the moment a turn finished**, so you couldn't expand and
+  review them afterward. They now persist with the message and stay
+  readable after the fact, in both Chat and Code mode.
+
+- **The agent-browser toggle and custom-agent picker were missing from Chat Mode's empty state.** They
+  only appeared once a chat was already in progress, since the header that holds them wasn't mounted on
+  the greeting screen. It's mounted now, from the first screen.
+- **Sending the agent to a real page could crash the whole browser panel.** If a `navigate` landed before
+  Electron had finished attaching the webview, it threw synchronously and took the panel down with it.
+  That now resolves as a retryable tool error instead of crashing.
+- **Chat Mode sometimes showed raw `tool_call {...}` markup, with a stray `/think` token, as the
+  assistant's answer.** The parser only recognized one wrapper format; a response in a different but
+  still tool-shaped format now goes through the normal retry path instead of being shown as-is.
+- **The agent reported a stranger's account as yours.** Asked who was signed in, it read the author of
+  the first post in the feed and answered with that handle — confidently, and wrong every time the top
+  post wasn't yours. It now says it can't tell, because the page doesn't actually reveal it. An honest
+  "I don't know" replaces a confident guess.
+- **The agent-browser panel's width in Chat Mode reset to default on every reload.** Your chosen split is
+  now remembered.
+- **A project skill waiting on approval now tells you.** Open a project whose own
+  `.bodega/skills/` haven't been approved and a chip appears with the count,
+  linking straight to Settings. Before, the skill simply didn't load and the only
+  trace was a line in a log. Approval is tied to the file's exact contents, so
+  editing an approved skill asks again.
+- **Search suggested an option that doesn't exist.** When a code search found
+  nothing it advised trying a case-insensitive search — `code_search` has no such
+  setting, so the retry was identical and found nothing again.
+- **Queued messages that failed stayed in the queue forever**, shown as though
+  they were still going to run.
+- **The agent browser's own findings surface in code mode**, not only in chat.
+
+- **Agent browser screenshots weren't showing up in Code mode.** The screenshot
+  thumbnail depended on a session pointer that Code mode's agent panel never set,
+  so nothing rendered even though the capture itself worked correctly. It now
+  reads the right session and the screenshot shows up in the stream.
+
+- **Closing the agent browser and then asking the agent to open a site again now
+  actually shows it.** If you closed the agent browser's own X button and then
+  asked the agent to revisit the same site, the agent would navigate there
+  successfully — but the panel stayed hidden until you clicked "Open agent
+  browser" yourself, even though the page had really loaded. Any agent-driven
+  visit now brings the panel back into view, whether it's a new site or the
+  same one as before. The X still closes it, and it stays closed until the
+  agent does something new.
+- **Approval cards for the agent browser now say more about what's actually
+  happening.** The "allow agent browsing" prompt used to show only the site's
+  domain — now it also shows the specific page the agent is asking to open,
+  when that's more than just the homepage. The "click" prompt used to show
+  the whole page address as if it were the site name; it now leads with the
+  site plainly, so you don't have to parse a URL to see where you're
+  approving a click.
+- **Quitting Bodega One now frees the VRAM your local model was using.** Bodega
+  runs your local model (llama.cpp) as its own background process so it can
+  hand it off between chats without reloading it every time. But on Windows,
+  quitting the app force-closed everything so fast that the local model
+  process never got the chance to shut itself down — it kept running in the
+  background, still holding onto several gigabytes of GPU memory, until you
+  noticed it in Task Manager and killed it by hand. Bodega now tells the model
+  to unload cleanly the moment you quit, so that memory is back and available
+  for anything else within a couple of seconds. An earlier attempt at this fix
+  told the app the model had shut down without actually checking — it now
+  waits and confirms the model process is really gone before saying so, and
+  tries again if the first attempt didn't take.
+- **The agent's browser window could cover the composer and model picker,
+  making them unusable.** When the agent browsed a website, the browser
+  window would sometimes land right on top of your message box and model
+  picker — so typing a follow-up could go into the website instead of to
+  Bodega, and clicking the model picker could click the website instead. The
+  browser window now avoids that area automatically, and it's also
+  draggable now if you want to move it out of the way yourself.
+- **A model you downloaded while Bodega was open didn't show up in the model
+  picker until you restarted the app.** If you ran `ollama pull` (or added a
+  model any other way) while Bodega was running, the model picker kept
+  showing the old list — even though Bodega's own connection check could see
+  the new model just fine. Restarting was the only way to make it appear.
+  There's now a refresh button right in the model picker's search box that
+  looks again for real, so a newly downloaded model shows up without
+  restarting anything.
+- **Vision worked for downloaded llama.cpp models but never for ones you added yourself.**
+  If you picked a vision model from the built-in catalog, Bodega automatically
+  grabbed its matching "vision helper" file for you. But if you already had a
+  vision model on your computer and pointed Bodega at it directly (sideload),
+  it had no way to find that helper file — vision silently never worked, even
+  though everything looked registered correctly. Bodega now looks in the same
+  folder as the model for a plausible helper file and pairs them automatically
+  when there's exactly one reasonable match. If it's not sure (for example, two
+  different vision models sharing one folder, or a helper file that doesn't
+  look like it belongs to your model), it leaves them unpaired instead of
+  guessing wrong — pairing the wrong files can crash the model server. If you
+  already hit this, you don't need to do anything: just open your models list
+  again and it fixes itself automatically. (There's no separate "re-scan"
+  button in the app yet — opening the models list is what triggers the check.)
+
+- **Long converted documents were quietly cut off at 50,000 characters, with
+  the agent told it had the whole file.** A page reader's pagination is meant
+  to keep going; this had capped every read at a fixed limit and reported it
+  as complete. It now paginates like everything else, so the agent can keep
+  reading a long document instead of reasoning from a partial one.
+- **Built-in skills were missing from every installed copy of Bodega.** The
+  twelve skills that ship with the app were documented, listed in the help, and
+  never actually installed — the app looked for them in a folder that was not
+  included in the build. Slash commands that relied on them did nothing. They are
+  now included, and a packaged build that finds none of them now says so loudly
+  at startup rather than starting up looking healthy. The command-line tool needs
+  the same fix in its own release.
+- **Undoing a remembered note or a saved knowledge card now actually works.**
+  The command-line tool could ask to undo one of these two kinds of changes,
+  but the app had no way to do it and always refused. Both are undoable now,
+  restricted to your own account, and a request that can't be safely undone
+  still refuses rather than pretending it worked.
+- **Memory searches quietly ignored a filter that was never populated.** Memory
+  rows carried a branch field that nothing ever wrote, while three search paths
+  filtered on it. Nothing was broken in practice, but the code implied a feature
+  that did not exist. Removed rather than half-built.
+
+- **Local models that think before answering were being told not to.** Qwen3
+  and similar models reason by default. Bodega was sending an explicit
+  "don't think" instruction on every request unless you had opened Settings
+  and changed it — so anyone who never touched that setting got the weaker
+  path. It now stays out of the way unless you actually turn thinking off,
+  and turning it off still works. Bodega had already measured what this costs
+  on a different model family and fixed it there; this closes the same hole
+  on the local path.
+- **GLM models had no thinking toggle at all.** The control never appeared,
+  so there was no way to turn their reasoning off. It appears now.
+- **The agent can check its own work again.** After writing a file, an agent
+  that read it back to verify what it had just done would have that read
+  cancelled and be told to stop reading and write more files. Reading a file
+  you just wrote is now allowed, once per file per write, and no longer
+  counts against you as time-wasting. The guard that stops an agent exploring
+  forever without writing anything is unchanged.
+
+- **A turn that read more than eight files got none of them.** When an agent
+  read a lot of files at once, a message reminding it to be selective was
+  inserted in a position that caused every one of those file reads to be
+  discarded before the agent saw them. It received the reminder and nothing
+  else. Present since 1.0.0-beta.31.10.5. Six more places with the same
+  ordering mistake were found and fixed, and there is now a check that reports
+  this class of failure instead of losing the content silently.
+- **Verification could grade a write against the wrong file.** A written file
+  was matched to what the task asked for by filename alone, so a write to
+  `test/index.ts` could be checked against a deliverable declared as
+  `src/index.ts` — passing or failing the wrong file. Matching now respects
+  the directory when one was specified, with a bare-filename fallback for
+  deliverables that didn't specify one.
+- **Bodega's own answer to "what does this app do?" pointed at the wrong
+  tool for reading PDFs, and named tools that weren't documented at all**,
+  including the tool that answers questions about Bodega itself. Six missing
+  tools were documented, and the retrieval that decides which help page to
+  show got two rounds of fixes: a question phrased differently than its
+  matching heading could return nothing, and a page that just happened to
+  repeat a search term many times could outrank the page that actually
+  answered it.
+- **The first-run hardware check could hang indefinitely on "Detecting...".**
+  A timeout existed but only covered some of the places that triggered the
+  check; a stuck GPU query in one of the others left new users stuck on the
+  loading screen with no way forward. The timeout is now built into the
+  check itself, so every caller is covered.
+- **An abnormally-closed backend could leave the local model server running
+  and holding onto VRAM.** Bodega now checks for and cleans up its own
+  orphaned model server at startup.
+- **A background chat session sharing the model server with the main window
+  was budgeted against double its real context window**, because the shared
+  budget wasn't being divided by how many sessions were actually sharing it.
+
+- **A note or fact you explicitly asked Bodega to remember never lost
+  confidence over time, even after it stopped being true.** Memory entries
+  built from things you said in passing correctly fade in relevance the
+  older they get. Entries you saved on purpose (`save_memory`, or anything a
+  tool wrote directly) were being treated as permanently at maximum
+  confidence instead — they never faded and never got flagged as possibly
+  stale. They now decay too, more slowly than an inferred fact since you
+  said it on purpose, but not forever.
+
+- **Reading part of a file could authorise overwriting all of it.** The guard
+  that stops the agent writing a file it has not read only checked whether the
+  file had been read at all, not how much of it. Read 8% of a large file, write
+  the whole thing back, and the other 92% was gone with nothing to warn you.
+  The guard now tracks which ranges were actually read and refuses a full-file
+  write on a partial view. The related case — where the agent had matched an
+  exact snippet rather than read the file — used to be refused with a message
+  that made no sense ("you have read only 0 of 0 characters"); it now says what
+  it actually wants.
+- **The read tool advised a line range it could not yet honour.** On a large
+  file it told the model to read a line range at a point when the tool still
+  only addressed characters. The advice was accepted, silently dropped, and the
+  same read repeated from the start — a loop the tool caused itself. The tool
+  now genuinely supports line-addressed reads (see "read a file by line number"
+  above), so the advice and the behaviour agree.
+- **Reading a Windows file and writing it back no longer rewrites every line
+  ending.** Line endings were being converted to Unix style on the way in, so
+  content the agent showed you and then wrote back came out as a whole-file
+  diff. The file is now left as it is on disk; a byte-order mark is still
+  stripped, since it broke snippet matching.
+
+### Security
+
+- **What you approve is now what runs.** When the agent asked permission for a
+  tool call, a later step could still adjust that call's arguments after you had
+  already said yes — so an approval prompt showing one value could be followed
+  by a slightly different value actually executing. Three such adjustments
+  (a near-miss operation name being corrected, a file-tool alias being
+  normalised, and a missing argument being filled in) now all run *before* the
+  prompt is built, on both approval paths, so the prompt shows the final call.
+  Nothing here needed re-approving, because there is no longer a difference to
+  re-approve.
+- **"Strict" command sandbox is now actually stricter than "Moderate".** The two
+  settings ran the same check, so choosing Strict changed nothing you could
+  observe while Settings and the docs described it as tighter. Strict now means
+  no shell command auto-approves — every one waits for you, read-only included.
+  The Settings text and the docs also said the sandbox applies in Ask mode; it
+  is the opposite. Shell commands never auto-approve in Ask or Plan mode, and
+  the sandbox level governs Act mode only. Both now say so.
+- **Closed a gap in where a saved cloud API key may be sent.** The check that
+  stops a stored key from being sent to an internal address was missing carrier
+  NAT (100.64.x), the 0.x range, the broadcast address, and integer-form IPs —
+  ranges the app's other network guards already blocked. `web_fetch` likewise
+  refused the broadcast address only after a DNS lookup, which it skips for a
+  literal IP. All the private-range guards are now held to one shared list of
+  adversarial addresses by a test, so a range added to one and forgotten in
+  another fails loudly instead of silently.
+
+- **A project Air-Gap Vault now blocks choosing a cloud provider, not just using
+  one.** The check that refuses to select a cloud model while air-gap is on was
+  written to consider the project's vault, but every caller in the shipped app
+  left that argument empty, so it only ever read the global switch. A project
+  with its own Air-Gap Vault on, while the global toggle was off, could still
+  set a cloud provider as its primary — the largest outbound path in the
+  product. All six call sites now resolve the active project's vault. Nothing
+  here says anyone's data was taken; it says the vault was narrower than the
+  setting implied on this path, and now matches it.
+- **A project Air-Gap Vault now also holds outside the tool layer.** Turning on
+  the vault for a project always stopped that project's tools from reaching the
+  network, but several things that are not tools were still checking only the
+  global air-gap switch: the verification and review layer (which embeds file
+  contents and diffs in what it sends), the mixture fan-out, HTTP hooks, wiki
+  and repo-map generation, and skill learning. With the global switch off and a
+  project vaulted, those could still call out. They now read the project's
+  vault. Nothing here says anyone's data was taken — it says the guarantee was
+  narrower than the setting implied, and now matches it. A source-level check
+  was added first so the full list was enumerated rather than guessed at, and
+  it fails the build if a new one appears.
+- **Embeddings and inline code completion now honour the vault too.** An
+  earlier draft of this entry said they didn't — that was wrong, and the fix
+  shipped in this same release. Inline completion (fill-in-the-middle) reads
+  the project's vault before it will call out, and the embedding service
+  applies the vault both to cloud embedding backends and to any non-local
+  embedding address. If you rely on a project vault rather than the global
+  switch, these two are covered.
+- **One embedding path is still global-only, named so you know the edge.** A
+  single lower-level embedding call site checks the global air-gap switch
+  rather than the project's vault. In practice it sits behind the service-level
+  gates above, but if you want a hard guarantee for that path today, use the
+  global switch rather than a per-project vault. This is the one remaining gap
+  and it is on the list to close.
+- **The memory embedding write and a memory-row uniqueness check are now
+  scoped per user**, closing two places that assumed a single account
+  rather than checking whose data they were touching. Bodega is a
+  single-user product today, so this is hardening ahead of the case where
+  it isn't — not a fix for a leak anyone hit.
+
+- **A project with air-gap on could still reach the network through two tools.**
+  `github_context` (which carries your GitHub token) and `consult_mixture` (which
+  can send code to cloud models) each checked only the *global* air-gap switch, so
+  a project-level air-gap with the global switch off didn't stop them. Both are
+  now blocked at the same gate as every other outbound tool. Reaching GitHub also
+  can no longer become a standing auto-approval.
+- **"Wipe all sites" now stops pages before clearing them.** A page still running
+  on a site you were signed into could write its cookies back moments after the
+  wipe. Revoking a single site already worked this way; wiping everything didn't.
+- **Approving a project skill validates the name**, so a crafted request can't
+  reach a file outside the project's skills folder.
+- **The agent's browser could end up painting somewhere the panel isn't.** Opening
+  the Preview tab moved the browser panel, but the page kept drawing at its old
+  spot — usually off the bottom of the window, so the browser looked empty or
+  vanished. It tracks the panel properly now, including when you drag the panel
+  to a different part of the layout, and the page doesn't reload when you move it.
+- **Agent browser screenshots taken right after navigating could come back tiny
+  and useless (a sliver of pixels instead of the page).** The agent would
+  screenshot a page it had just opened before the browser view had actually
+  finished laying itself out, so the capture caught the in-between moment
+  instead of the real page. It now waits for the view to be properly sized
+  before capturing, and if a capture still comes back too small it retries
+  once automatically. If it's still bad after that, the agent is told
+  plainly that the screenshot failed (with the size it actually got) instead
+  of being handed a useless image and left to guess.
+
+- **A safety check on the agent's browser had never actually run.** A backstop
+  meant to stop an ungated page from loading in the agent browser was reading a
+  field that doesn't exist in the version of Chromium we ship, so it quietly did
+  nothing every time instead of doing its job. It now uses a signal that's really
+  there, and blocks the page from opening at all rather than just cancelling the
+  first load. Nothing was exposed by this — the checks in front of it were doing
+  the work — but a backstop that never fires isn't a backstop.
+- **Bodega now cleans up leftover browser data it has no record of.** If cookie
+  storage for a site was left on disk without a matching "keep me signed in"
+  record — something that could happen during testing — it was invisible in
+  Settings and couldn't be removed from there. Bodega now finds and clears that
+  data at startup, so what Settings shows you is what's actually on disk.
+- **Closed a gap where a specific kind of private key could slip past the output
+  filter unredacted.** Bodega scans command output and previewed page content for
+  things that look like leaked secrets before showing them to the AI. That scan
+  recognized several private-key formats, but missed the plain, un-labeled kind
+  used by many modern tools — it could have shown up unredacted. It's now caught,
+  along with a few other secret formats (OpenRouter, Google, and Azure keys, and
+  "Bearer" tokens) that weren't recognized before.
+- **The bug-report export (repro bundle) had its own, older secret scanner that
+  missed some of the same formats.** If you generated a bug-report bundle to
+  share with someone, an OpenRouter key, a Google API key, or a short GitHub
+  fine-grained token could have slipped through unredacted in that file — even
+  though the same secret would already have been caught elsewhere in the app.
+  The bundle exporter now uses the same secret-detection list as the rest of
+  Bodega, so it can't drift out of sync again.
+
+- **A shell command could smuggle a second command past approval.** Bodega
+  judges how risky a shell command is by splitting it into its parts and
+  looking at each one. It split on `|`, `||`, `&&` and `;` — but not on a
+  single `&`, which is what separates commands on Windows, nor on a line
+  break, which separates them on macOS and Linux. So `git status & something
+  else` was read as one harmless command, scored as safe, and in Act mode ran
+  without asking you. Both separators are now recognised. Affects the app and
+  the command-line tool, which share the same check.
+- **A project you cloned could load skills nobody approved, with their full
+  permissions intact.** Skills you import yourself already get a review step
+  and have their risky abilities stripped out until you approve them. A skill
+  that shipped inside a project's own `.bodega/skills/` folder skipped that
+  step entirely — it loaded on clone with every permission it asked for, and
+  could even be picked automatically just from its description matching what
+  you asked for. Project skills now go through the same approval gate as
+  imported ones, keyed to the exact contents of the skill file so an edit to
+  it re-asks. If the approval record can't be read, nothing is trusted.
+
+---
+
 ## [1.0.0-beta.34] - 2026-08-05
 
 ### Added
@@ -386,6 +1120,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
 ---
+
 
 ## [1.0.0-beta.33] - 2026-07-27
 
