@@ -7,6 +7,27 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.35.1] - 2026-08-15
+
+### Fixed
+- **The "llama.cpp is serving ... but this request needs managed-..." warning no
+  longer fires when nothing is wrong.** Picking a local model stored an internal
+  registry id that goes stale when the same file is re-registered, and the
+  mismatch warning compared names instead of models — so it nagged on every
+  message while the right model answered. Model identity is now resolved to the
+  actual file on both sides before any warning, a real mismatch warns once
+  rather than every message, and the warning names models the way the picker
+  does instead of showing internal ids or file paths.
+- **What's New shows this release's notes, not "[Unreleased]".** The dialog
+  picked the top section of the changelog whatever it was; it now finds the
+  section for the version you are running, and a release can no longer be
+  tagged with an uncut changelog at all.
+
+### Changed
+- **The app loads noticeably faster.** The Settings and Help panels — over 40%
+  of the interface code — no longer load before first paint. They load from
+  disk the first time you open them, which at local speed is imperceptible.
+
 ## [1.0.0-beta.35] - 2026-08-15
 
 > **If beta.34 showed you "lost backend connection", this update is the fix.**
@@ -80,6 +101,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   stored as an image blob. Reading one filled the conversation with data nothing
   could use. The agent now gets a short explanation of why it got no content.
 - **Muse Glimmer 30B added to the model catalog.**
+- **Qwen3.8-27B added to the model catalog.** Qwen's 27B dense vision-language
+  model: 262K native context, native tool calling, thinking on by default, and
+  it reads images through its own projector. Needs llama.cpp build b7990 or
+  newer, which the catalog now checks before offering the download.
 - **You can update the llama.cpp binary from Settings → Models → My Models → llama.cpp engine.**
   Until now the only install path was the one-time onboarding screen, so once
   you were set up there was no way to move off the build you first installed —
@@ -1120,7 +1145,6 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
 ---
-
 
 ## [1.0.0-beta.33] - 2026-07-27
 
