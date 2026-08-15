@@ -384,6 +384,9 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+
+---
+
 ## [1.0.0-beta.33] - 2026-07-27
 
 The verification release. Bodega used to tell you your finished work had failed —
