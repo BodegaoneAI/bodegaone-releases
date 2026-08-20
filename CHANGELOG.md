@@ -7,6 +7,360 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.36] - 2026-08-20
+
+### Security
+
+- **A setting could be used to run commands on your machine.** The custom SSH
+  key path in Git settings was passed to git in a way git interprets as a
+  command line, so a crafted value could execute anything the app can execute —
+  and because the agent can change settings, a prompt-injection attack on a
+  hostile web page or repository could reach it. Key paths are now validated and
+  rejected outright if they are not a plain path to a real file, and a rejected
+  key tells you instead of quietly falling back to your default SSH key. This
+  protection now also covers pushes the app makes on its own — automated
+  pull-request pushes and similar background actions — not only pushes you
+  trigger by hand.
+- **Approving or revoking trust for a project's own skills is now tied to your
+  actual permission mode.** The approve and revoke actions had no connection to
+  Ask/Plan/Act at all, so anything running locally — including a command the
+  agent itself had been allowed to run — could grant or remove trust in a
+  skill while you were in a mode whose entire point is that nothing changes
+  without you. Both actions now respect your permission mode, and every grant
+  is now recorded with what was approved, when, and how it was requested.
+- **A skill folder that was actually a shortcut to somewhere else on disk
+  could load and run without ever showing up for approval.** A project's
+  skills folder could contain a filesystem junction pointing outside the
+  project; the loader followed it and ran the skill normally, while the
+  approval list showed nothing waiting — the exact protection this feature
+  exists to provide, defeated by a filesystem trick a cloned repository could
+  ship. These are now refused outright and shown as blocked.
+- **Creating a skill or importing a plugin could bypass Ask/Plan mode
+  entirely.** Whether the action needed your approval depended on a value the
+  request itself supplied, so a request that simply left that value out wrote
+  directly no matter what mode you were actually in. Both now always check
+  your real, saved permission mode — and the same gap, one layer down, in how
+  a tool call's approval is decided during a chat, is closed with it.
+- **The built-in browser could send a click or a typed value to a live,
+  non-local site while a project was marked air-gapped.** Navigating and
+  submitting a form were already re-checked against air-gap status; clicking
+  and typing on an already-open page were not. Reading a page you already have
+  open — viewing it, screenshotting it, checking for console errors — is
+  intentionally still allowed under air-gap, since that sends nothing off your
+  machine; only the actions that can send data out are blocked.
+- **Content from a vaulted project could be pulled into a different,
+  non-vaulted project's cloud request.** Searching across all your projects at
+  once is intended and unchanged; only rows that came from a project you
+  marked as vaulted are now kept out of a search made from a different,
+  non-vaulted project's session.
+- **Reading files was not confined to your workspace.** Writing, deleting and
+  renaming were restricted to the folders you had opened; reading was not, so a
+  compromised page in the built-in browser could ask for any file on the disk.
+  Reads are now restricted the same way. Files you pick yourself through the
+  system file dialog still open normally.
+- **Air-gap mode could be defeated by an unrelated program.** The app confirmed
+  air-gap status by asking its own backend over the network, and treated any
+  answer on that port as authoritative — so a leftover backend from an earlier
+  session, or any other program answering there, could report air-gap as off
+  while it was on. The setting on disk is now read first and always wins.
+
+### Fixed
+
+- **Starting a Fleet Parallel run on a repo with no commits yet now shows a
+  clear message instead of raw git error text.** A fresh `git init` with no
+  commits made "git rev-parse HEAD exited 128: fatal: ambiguous argument
+  'HEAD'..." bubble straight into the run's error state. It's detected up
+  front now, before anything is provisioned, and tells you plainly: make an
+  initial commit first.
+- **The Bodega Map's rebuild button now tells you what it actually found.**
+  A rebuild that changed nothing looked identical to a broken one — both just
+  reset the "built 0s ago" label. The Map graphs your project's structure
+  (files and imports), so a content-only edit correctly leaves it unchanged;
+  a rebuild now says so directly ("rescanned N files — no structural
+  changes") or tells you what moved ("rescanned — N nodes changed").
+- **A panel that crashed from a rebuild happening underneath it now tells you
+  to reload, instead of offering a "Try Again" that could never work.** If the
+  app's files changed while it was running — a rebuild, an update landing
+  mid-session — a panel like the Code Editor could crash trying to load a
+  piece of it that no longer existed on disk. "Try Again" rebuilt the panel
+  and asked for the exact same missing piece, so it failed identically every
+  time; only a full app reload actually recovered. That specific crash is now
+  recognized for what it is, and the panel offers Reload App with an
+  explanation instead of a retry button that was never going to succeed.
+- **VRAM fit estimates for vision models now include the projector.** The
+  green "fits" badge and the predictive VRAM check both compared a vision
+  model's weights alone against your available VRAM, leaving out the
+  multimodal projector file (mmproj) every vision model also needs — 0.16 to
+  1.9 GB depending on the model. A card could read as fitting and still run
+  out of memory once the projector loaded. Both now count the projector,
+  using its real downloaded size when it is already on disk and the
+  documented catalog estimate otherwise. Non-vision models are unaffected.
+- **Turning reasoning "Off" did nothing on some models.** The composer
+  discarded your choice before it reached the model, so picking Off produced
+  the exact same request as leaving reasoning on its default — on DeepSeek
+  and thinking-capable Qwen models, that meant you were billed for reasoning
+  you had explicitly turned off. Off is now actually sent as Off, and the
+  in-app documentation, which claimed reasoning was off by default, has been
+  corrected to say what the app actually does.
+- **Behind-the-scenes groundwork for reasoning controls that only ever offer a
+  position your model actually supports.** OpenAI, Gemini, DeepSeek and
+  Qwen/DashScope now each carry a data-driven description of exactly which
+  reasoning depths they accept and how they behave when asked for something
+  they don't — DeepSeek's "Medium" is recorded as the same request as "High"
+  it's always been, rather than a separate option that happened to collapse
+  silently. This groundwork doesn't change what you see in the composer yet;
+  it's the foundation the reasoning picker will read from next.
+- **Qwen 3.8 27B's Low / Medium / Extra High picker now actually reaches the
+  model.** The picker itself started showing real levels in an earlier
+  release, but the value you chose never made it into the request the local
+  server received — every turn ran at the model's most expensive default
+  regardless of what was selected. It's now sent on every turn, mapped to the
+  model's own vocabulary.
+- **The "Off" row on the reasoning picker no longer shows for a model whose
+  provider has no way to actually turn reasoning off**, for every provider —
+  previously this protection only covered Anthropic's always-thinking Claude
+  models; OpenAI- and Gemini-family models with the same limitation could show
+  an Off option that silently did nothing when picked.
+- The reasoning picker now reads its options from what the backend confirms a
+  model actually supports, verified end-to-end against what the server
+  serves — not only against hand-written test fixtures — closing the last gap
+  in last release's move away from name-guessing.
+- A leftover, never-taken code path for the legacy "inject reasoning into the
+  prompt" fallback has been removed; the fallback itself is unchanged and
+  still covers models with no native reasoning parameter at all.
+- **Adding a web page to your knowledge base from a second project could
+  silently delete it — and everything saved from it — out of the first
+  project.** Re-adding a URL you'd already saved elsewhere removed the
+  existing entry without checking which project it belonged to, with no
+  warning and no way to undo it. Re-adding a URL now only replaces that same
+  URL's entry within the project you added it from.
+- **Undoing a single remembered fact through the agent's own revert could
+  delete the same fact from every other project, and the general one, along
+  with it.** Reverting one memory now only reverts that one memory.
+- **Turning on semantic memory search after you already had memories saved
+  made every older memory invisible to search, with nothing telling you it
+  had happened.** Enabling embeddings only ever helped memories saved from
+  then on; the moment one embedded memory existed, everything saved earlier
+  silently stopped showing up in search results, even though it was still on
+  disk. Search now finds memories from before and after you turn embeddings
+  on.
+- **Claude usage under-counted cost on any conversation that reused cached
+  context** — which is most agentic sessions, since Bodega's own working
+  context is exactly what gets cached. Cached tokens were being left out of
+  the calculation entirely instead of billed at their real (lower) rate.
+  Recorded cost on Claude turns will look higher after this update — that is
+  the number becoming accurate, not a price change; nothing about what
+  Anthropic actually charges has changed.
+- **A model your budget didn't recognize could spend past your cap with
+  nothing to stop it.** An unpriced model was estimated at $0 per token, and
+  a $0 estimate skipped the daily-budget check entirely — so spend on that
+  model was never blocked, no matter how low your limit was set. Unpriced
+  models are now estimated conservatively above their likely real cost
+  instead of at zero, so a budget cap actually catches them.
+- **Several models were billed at the wrong rate.** o3 was charged at o1's rate,
+  7.5x too high. Opus 4.5 was charged at the pre-4.5 rate, 3x too high, in Boost
+  usage. GPT-5 was charged at GPT-5.4's input rate. `deepseek-chat` was charged
+  as an older model than the one that actually answers it. mistral-large was 4x
+  too high and one GPT-5.6 tier 5x too high. Every rate is now checked against
+  the provider's own published pricing, and the app's three pricing tables are
+  checked against each other automatically, so they cannot drift apart again.
+- **Claude Sonnet 5 is billed at its introductory rate.** The published $2/$10
+  promotional rate runs to 31 August; the app was charging the standard $3/$15.
+  The change-over back to standard pricing is now dated, so it happens on its own.
+- **DeepSeek peak and off-peak pricing starts at the right hour.** DeepSeek's new
+  time-based pricing begins at 16:00 UTC; the app switched at 00:00 UTC, so usage
+  on 16 August was costed against the wrong rate for sixteen hours.
+- **Closing a tab could approve a tool by itself.** A pending approval left on a
+  closed window kept its countdown running, so a read-only tool could approve
+  itself and run with nobody watching, and a longer-running one could be
+  cancelled minutes after you walked away. Pending approvals now wait for a real
+  decision, and the run itself keeps going as before.
+- **The app could learn you had refused something you never saw.** A disconnect
+  was recorded as if you had pressed Deny, and one such record permanently
+  prevented that action from ever being suggested for automatic approval again.
+  Disconnects are no longer treated as decisions.
+- **A dropped connection could lose a tool call and still report success.** If a
+  connection ended before the provider sent its end-of-stream marker, a completed
+  tool call was discarded and the turn finished as if the model had simply chosen
+  not to use a tool — no error, nothing in the logs. Affected OpenAI-compatible
+  providers including OpenRouter, Groq, vLLM and LM Studio.
+- **Cut-off replies were shown as complete.** The backend marked a response as
+  truncated and the interface ignored the flag, so a partial answer looked
+  finished — and for hosted models that signal was also used to decide the model
+  was warmed up and working.
+- **Retrying a too-long conversation lost your reasoning settings.** When a
+  request was retried after exceeding the context limit, "Thinking: Off", fast
+  mode and custom sampler settings were dropped from the retry, so models that
+  think by default started thinking again despite being turned off.
+- **Prompt-cache statistics read zero after a reconnect**, which looked like
+  caching had stopped working when it had not. Approval prompts shown after a
+  reconnect also displayed internal tool identifiers instead of names.
+- **A local model could keep answering after you switched models.** If shutting
+  down a local server failed, the app lost track of it while it kept running and
+  answering on the same port, so the next model appeared to load successfully
+  while the previous one served every reply. The app now confirms a shutdown
+  before starting a replacement and checks that the server answering is the one
+  it started.
+- **A missing tool was reported as broken code.** On Linux, a verification
+  command failing because the program was not installed — Python, for example —
+  was read as a genuine compilation error, and the agent was told to repair code
+  that was fine.
+- **Custom `--parallel` settings for llama.cpp no longer break the context
+  budget.** Setting it split the context across slots without the app knowing, so
+  it planned prompts against several times the space actually available and
+  requests were cut off mid-run.
+- **Skills and tools no longer appear briefly empty at start-up.** Both lists
+  could be requested before they had loaded and would return an empty list as if
+  that were the answer.
+- **External coding agents (ACP client mode) are now clearly marked
+  unavailable, with a reason, instead of appearing installed and then hanging
+  on the first message.** The agent picker showed an external agent as ready
+  the moment its program was found on your machine, even though a real
+  conversation with it could never finish. This mode is off by default while
+  it is rebuilt against the actual protocol those agents speak; the picker
+  now says so instead of letting you start a conversation that cannot end.
+- **Cancelling a slow MCP tool call no longer disconnects the whole MCP
+  server.** A single tool call running past its timeout was treated the same
+  as the server itself dying — every other call in flight to that server
+  failed too, and the server was reconnected even though it was healthy the
+  whole time. A timed-out call is now reported on its own, and a healthy
+  connection is left alone.
+- **A wedged run in Loops now releases its slot on its own instead of
+  blocking every other scheduled and overnight run indefinitely.** A run
+  whose provider stopped responding without closing the connection used to
+  sit "running" forever, permanently occupying the one concurrent run slot
+  and making every other loop report a false concurrency error until you
+  restarted the app. Loop runs now have a maximum duration (30 minutes by
+  default) after which a stuck run is stopped and marked failed, clearly
+  labeled as a duration timeout rather than a cancellation.
+- **An apply interrupted by a crash or a restart no longer leaves a run stuck
+  on "Applying..." forever.** That state could previously only be cleared by
+  restarting the app, and even then it stayed stuck. Bodega One now recovers
+  an interrupted apply automatically on restart, and marks it as failed if it
+  didn't finish, so it can be retried, completed, or discarded normally.
+- **A code-intelligence server (language server) that keeps crashing right
+  after it starts is now retired and replaced instead of endlessly
+  restarting or going silent forever.** A server that OOM'd on a particular
+  file used to either respawn on every keystroke with no back-off and no
+  visible error, or — for the agent's own use of the same servers — go quiet
+  permanently after a couple of failures with no diagnostics and no
+  indication anything was wrong. Both cases now surface a clear failure and
+  recover with a fresh server automatically.
+- **Approving or revoking a project skill's trust no longer freezes every
+  open chat while it happens.** The trust store read and wrote its file
+  synchronously, which briefly stalls the entire app — including any chat
+  that is mid-response — and could take over twenty seconds on a busy disk.
+  Trust changes are now handled without blocking anything else you're doing.
+
+- **Connecting an external coding agent (Claude Code, Gemini CLI, Codex,
+  Cursor) to Bodega, or connecting an editor like Zed to Bodega, no longer
+  hangs on the first message.** Both directions of this connection were
+  speaking a protocol invented before either side had been checked against
+  a real agent or a real editor, so a genuine connection stalled instead of
+  completing its handshake. Both directions have been rebuilt to match the
+  actual protocol these tools use. External agents stay off by default until
+  a real one has been verified end-to-end; turn them on with
+  `acp.client_mode_enabled` if you want to try them early.
+- **Cancelling an in-progress turn from an external agent connection now
+  reports the cancellation correctly** instead of through a made-up signal
+  that no real client or agent recognizes.
+- **A crashed language server used to keep showing green.** If the background
+  helper that powers go-to-definition, hover info and error squiggles for a
+  language crashed or was stopped, the editor kept its old status badge and
+  kept showing outdated errors until you restarted the app. A crash or stop
+  is now reflected immediately — the status badge updates and stale error
+  squiggles clear.
+- **Inline code completion silently went quiet when it hit your spend cap or
+  had no active model, and looked identical to just not typing anything worth
+  completing.** Both cases are now told apart in the completion stats, and a
+  cancelled completion request is now actually cancelled instead of finishing
+  anyway after you had moved on.
+- **A scheduled or batch run that lost track of its own commit, or was set to
+  run as an agent profile that had since been deleted, used to fail
+  silently.** A merge that landed but could not auto-commit now shows a
+  warning on the run instead of only in a server log; a run configured for a
+  deleted agent profile now says so on the run instead of quietly falling
+  back to default settings.
+- **Deleting an agent profile that a scheduled loop still points at now warns
+  you and names the loop**, instead of deleting silently and leaving the loop
+  referencing nothing. You can still force the delete if you mean it.
+- **A batch of runs you cancelled partway through could show an item as
+  finished when it never ran.** Items still in flight when you cancel now
+  show as skipped, not done.
+- **Bodega Map's file and edge counts are now honest about the cap** — when a
+  project has more files than the map can show, the stats say so instead of
+  quietly freezing, and edge counts are split into import edges and
+  structural edges instead of one combined number. Refresh now actually
+  rescans instead of sometimes returning the same cached map.
+- **A tool-approval card for an MCP server now names the server**, not its
+  internal id, so you know what you're actually approving.
+- **Memory context size shown in stats is now measured from what was
+  actually injected into the conversation, not estimated from a fixed
+  multiplier** that stayed the same even when nothing was injected.
+- **Some llama.cpp flag decisions used to happen silently** — a
+  chat-template flag being dropped because the model doesn't support it, or
+  a global context-size override being ignored in favor of a per-model one.
+  Both now show up in the debug frame instead of leaving you to guess why a
+  setting didn't seem to take effect. A per-model context-window setting now
+  correctly takes priority over a global one, matching how every other
+  per-model override in the app already works.
+- **A scheduled run blocked by a failing spend-cap check now says so instead
+  of silently proceeding as if nothing were wrong.** A vault or spend-cap
+  lookup that itself fails now blocks the run rather than treating the
+  failure as permission to spend.
+
+- Several internal documentation comments that promised behavior the code did not deliver have been corrected — including the repo map's cache-refresh claims and the map query tool's air-gap status, which now states plainly what is and is not enforced.
+- Help-page references to source locations were repaired after code moved underneath them.
+
+### Added
+
+- **The reasoning-effort picker on Qwen 3.8 27B (local) now shows its real
+  Low / Medium / Extra High levels** instead of a plain on/off toggle. Bodega
+  now sends the model's own effort value instead of always leaving it at its
+  most expensive default.
+- **There's finally a way to set a default reasoning effort for every model
+  at once.** Settings → Models → My Models → Model Roles gains a Reasoning
+  Effort control under Global — previously this setting existed and was
+  documented, but nothing in the app could actually change it.
+- **The thinking toggle now appears only for models that actually support it,
+  and the same is true for the effort picker.** Previously a stale menu row
+  could sit there for a model whose provider rejects it outright — most
+  visibly, the strongest Claude models refuse to turn thinking off at all, so
+  showing an Off option there did nothing when you picked it. That option is
+  gone for those models now; every model with tunable reasoning still shows
+  the full effort picker. Claude's reasoning replies are also more consistently
+  populated instead of occasionally showing an empty "thinking" section.
+- **You can now revoke a project skill's trust, not just grant it.** Trust
+  could previously only be given; taking it back required editing a file by
+  hand. Settings gains a revoke action alongside approve; the command-line
+  tool's approve command gets the same fields it needs to keep working in a
+  future release (see below).
+- **The agent can open pull requests.** A dedicated tool with proper checks,
+  rather than shell commands: it always asks first — in every mode, including
+  when other actions run automatically — and refuses to open a pull request from
+  a protected branch.
+- **Commits made by the agent say so.** Agent-authored commits carry a trailer
+  identifying the model, alongside the existing signed verification trailer used
+  for verified runs. It is on by default and can be turned off in settings.
+- **Pushing to `main` or `master` is refused**, along with the repository's own
+  default branch, whatever it is called. Force-pushing and deleting branches are
+  not possible at all.
+- **Z.ai's new GLM-5.3 flagship is now a full cloud model option.** Same 1M
+  context and thinking support as GLM-5.2, priced at $1.40 / $4.40 per million
+  input/output tokens. This completes the three-model addition started with
+  DeepSeek V4 — Gemini 3.7 Flash was already added in the previous release.
+
+### Changed
+
+- **The app starts faster.** The terminal engine — over 500 KB — no longer loads
+  before the window is drawn, cutting a further third off the code loaded at
+  start-up. It loads the first time you open a terminal.
+- **Long conversations stay responsive.** Chat now draws only the messages on
+  screen instead of every message in the conversation, and reconnecting to a
+  running session no longer redraws once per word of the backlog.
+- **Searching your project's index is faster** — roughly ten times, for repeated
+  searches in a session.
+
 ## [1.0.0-beta.35.1] - 2026-08-15
 
 ### Fixed
