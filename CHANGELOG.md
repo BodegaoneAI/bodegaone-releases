@@ -7,10 +7,249 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.37] - 2026-08-23
+
+_V2 hardening pass (2026-08-23) — no new features, just making what's already here work the way it
+was supposed to. Fixes, behaviour changes and speed-ups below are from that pass unless noted
+otherwise; each lane appends its own lines under the matching heading._
+
+### Added
+
+- **The agent browser reads a page as a short, labeled list of clickable things instead of raw
+  HTML.** A new `getSnapshot` action lists links, buttons and fields with short refs (`e3`), flags
+  hidden elements, and is a few hundred tokens instead of eight thousand characters; the agent can
+  then click or type by ref instead of guessing a CSS selector, and a ref from an old snapshot is
+  refused rather than silently pointed at something else. Page text now reaches the model inside one
+  clearly marked untrusted block, and `getDom` drops scripts and styles before its size cap.
+- **The agent's browser can press keys, choose dropdown options, hover, scroll, and go back or
+  forward** — gated exactly like clicking, and back/forward never move to a page that would have
+  been refused as a navigate.
+- **An "Uncensored" prompt template** (Settings → Prompts) for models you chose because they
+  answer without refusals. It drops Bodega's own "decline harmful requests" instruction — which was
+  making such models refuse — and keeps truthfulness and privacy. Not the default; pick it as the
+  Chat default when running one of those models. Existing installs get it on next start.
+- **Rename Symbol (F2)** now works in the code editor — it was wired for Go to Definition,
+  Find References, Hover and Signature Help but not renaming. Renaming updates every open file
+  the rename touches; a file with unsaved changes is left alone rather than overwritten. Real
+  quick-fixes from the language server (add a missing import, etc.) now show up alongside the
+  "Fix with Bodega" action in the lightbulb menu. The Symbol Outline panel and the new **Go to
+  Symbol** overlay (**Ctrl+Shift+O**, jump to a function/class/etc. in the current file) now read
+  from the language server when one is available, falling back to the previous best-effort
+  scan for languages without one.
+- **The agent browser can now wait for something to happen instead of guessing.** A new
+  `wait_for` action polls for a selector, some page text, a URL substring, or the page settling —
+  useful for pages that load content after the initial page appears. Clicking a link or button now
+  reports whether the click actually navigated, is still loading, or stayed on the same page,
+  instead of leaving you to check separately. A navigate that runs out of time now double-checks
+  whether the page landed anyway before calling it a failure, so a slow-but-working page is no
+  longer reported as broken.
+
+### Changed
+
+- **Agent-browser site approvals survive an app restart** (per project, in the local database), and a
+  fixed list of banks, payment processors, brokerages, government-ID portals and adult sites can never be
+  automated by the agent — refused before any approval card, with no setting to unlock it.
+- **Typing and submitting forms on your own localhost dev server no longer stops to ask for
+  approval on every keystroke and click** — password, credit-card and one-time-code fields still
+  ask every time. Agent-browser screenshots sent to the model are now resized to a reasonable
+  size by default, so a big monitor's screenshot no longer eats your whole prompt; add
+  `fullRes:true` if you need the bigger picture.
+- **One hunk-review workflow, not two.** The batch review panel (`Ctrl+Shift+D`) and the editor's
+  in-tab Diff Review now share one keyboard set (`j`/`k` move, `a`/`r` accept/reject, `Ctrl+Enter` apply,
+  `Esc` close), and a new "Open in Diff Review" button carries your accept/reject choices from the
+  batch view into the in-tab view instead of resetting them.
+- Fleet monitor rows use the same table rows and cells as every other table in the app (spacing,
+  hairlines and number alignment now match).
+
+- **A quieter surface.** The app's panels no longer float as separate cards with their own
+  shadows; everything sits on one surface divided by thin lines, and the selected item in lists
+  and menus is shown with one soft highlight instead of a purple bar or fill. The light theme is
+  a softer warm grey rather than near-white, so switching to it at night no longer glares. The
+  code editor and terminal pick up the same colours and the same light/dark syntax palette, and
+  they re-colour immediately when you change theme. The fleet cards' coloured gradients are gone.
+- **One set of building blocks.** Dropdowns, context menus, tooltips, inputs, toggles,
+  badges, banners, tab strips, status dots and empty states across the app now come from a
+  single shared set, so they look and behave the same everywhere — the same menu density,
+  the same keyboard navigation, the same quiet highlight for the selected row. Buttons are
+  text or outlined, never filled. Menus and panels no longer each pick their own stacking
+  order or shadow.
+- **Chat Mode, reorganized.** The app is one surface now — no floating panels with gaps and
+  shadows, just thin dividers between the sidebar, the conversation and the side panels. The
+  sidebar lists sessions as plain rows with a soft highlight on the current one (the purple bar
+  is gone), and starts a new chat from an outlined button. Replies no longer sit in a box; the
+  agent mark and name introduce them and the text reads on the page. Your own messages are a
+  quiet grey bubble. Tool calls are one-line rows, and an approval is a small card with Reject /
+  Allow and their keyboard hints. The composer keeps its controls inside the box — attach,
+  Thinking, Web, the model, mic and send — and the old strip of chips below it is gone: Research
+  and routing mode live under "+", the context inspector has its own button at the top of the
+  conversation. The top bar's Chat/Code switch is a quiet pill instead of an underline.
+
+- **The editor's Diff Review tab can now keep or drop individual hunks**, not just the whole file.
+  Whole-file Keep/Undo still work exactly as before; toggling is optional — every hunk starts
+  accepted. Use `j`/`k` to move between hunks and `a`/`r` to accept/reject the focused one, or click
+  Accept/Reject on any hunk directly. A "N of M hunks kept" line tracks your selection.
+
+_(Calm Surface · Wave 4 — Settings, first run, overlays, help)_
+
+- **Settings, first-run setup, dialogs and the help hub now match the rest of the app.** The
+  Settings nav uses the same quiet highlight as everywhere else (no purple bar), theme cards pick
+  with a hairline and a check instead of a tint, spending ranges are a segmented control (the
+  filled "30d" is gone), model and provider cards, MCP/ACP/plugin/skill rows, hook lists and
+  knowledge cards all use the shared rows, cards, badges and meters. The first-run flow and
+  provider/model setup steps read as the same app — text step progress, hairline cards, no filled
+  buttons — and the trust prompt, confirm dialogs, What's New, keyboard shortcuts and command
+  palette sit on one modal/popover recipe with a theme-aware scrim. Help hub pages use the
+  reading typography of the chat stream; the file viewer centres its content column.
+- **`text-error`/`border-error` classes referenced a colour that was never defined** — several
+  llama.cpp error states rendered with no colour at all. Fixed.
+- **Two doc-hub sentences still described purple-filled toggles** (Research, Boost). Corrected.
+
+_(Calm Surface · Wave 3 — Code Mode)_
+
+- **Code Mode now sits on the same calm surface as Chat.** Explorer rows, editor tabs, the Agent
+  panel, Sessions drawer, Fleet cards, Git/Search/Todo/Ports/Problems panels, terminal overlays,
+  preview bar and the codebase Map all use tonal selection (no purple rails or fills), hairline
+  panel headers, the seven-step type scale and the shared Row/Badge/Card/Tabs/EmptyState/Meter
+  pieces. Fleet cards lost their per-kind glow; the selected file is a quiet highlight, not a bar.
+- **The Web toggle is gone from the Code Mode composer.** The agent's web search and fetch tools
+  are available whenever tools are — the toggle only ever changed a line of prompt text, and with
+  it off that line told the model it *couldn't* search even though it could. Just ask. Chat Mode
+  keeps its Web chip.
+
+_(Code Mode editor)_
+
+- **Files opened outside your project folder now open read-only**, with a badge, instead of
+  silently accepting edits you couldn't have saved as part of the project.
+- **Added Ctrl+=, Ctrl+-, and Ctrl+0 to zoom the editor's font size** in and out and reset it,
+  without leaving the keyboard for the Settings panel.
+- **The editor can now split vertically (stacked) as well as side-by-side.** A toggle next to the
+  split button switches orientation.
+- **Diff review now has keyboard bindings**: Ctrl+Enter to Keep, Ctrl+Backspace to Undo, Esc to
+  Close, in addition to the existing buttons.
+- **Hidden tabs are now reachable from a new overflow menu** when the tab strip scrolls past the
+  visible width, instead of only the scrollbar.
+- **The status bar now shows line-ending (LF/CRLF) and encoding for the active file.**
+- **Whitespace rendering is now a Settings choice** (Selection / All / Boundary / None) instead of
+  being fixed to "only while selecting text."
+- **Opening a large file (5–20MB) now asks before loading, from every entry point** — Quick Open
+  and go-to-definition used to open one instantly with no warning; the file tree already asked.
+
+### Fixed
+
+- A project with Air-Gap Vault on (global air-gap off) no longer probes a non-local Ollama endpoint when
+  choosing a vision model; the probe now honours the vault like the image dispatch already did.
+- **The chat transcript now shows the model that actually answered** when the local server serves a
+  different model than requested — for interactive and background/headless runs alike.
+
+- **Chat Mode's Agent Browser panel now shows running local dev servers**, matching Code Mode.
+
+- **Keyboard navigation in seven right-click and dropdown menus** (file tree, chat session list,
+  problems panel, editor tabs, agent browser options, terminal, and Run Tasks) — arrow keys, Home
+  and End now move between items again, and Enter activates the highlighted one. Mouse-only use
+  still works exactly as before.
+- **Two overlapping labels on the API key field** when connecting a cloud provider (Settings →
+  Providers), which could confuse a screen reader about which text actually names the field.
+- **Tab strips could skip the wrong tab** when arrow-keying past a disabled one with keyboard
+  navigation, landing back on the tab you started from instead of wrapping around.
+- **Chat Mode now tells the agent about every tool it can actually use.** The tool list shown to
+  the model in Chat Mode was quietly narrower than what it was actually allowed to call — file
+  search, file reading, and the browser preview tools worked in Chat Mode but were never mentioned
+  in the model's own instructions, so it sometimes acted as if they didn't exist. Both now agree.
+- **Searching your saved memories for a term containing a percent sign or underscore** now finds
+  only what you typed, instead of treating those characters as wildcards and returning
+  unrelated results.
+- **Editor tabs were mouse-only for reordering and the right-click menu.** Focus a tab and press
+  **Alt+←/→** to move it, or **Menu** / **Shift+F10** to open its context menu (pin, close, close
+  others) — the same actions dragging and right-clicking already had. Tabs also now announce their
+  name, position and unsaved state to screen readers.
+- **Go to Symbol (Ctrl+Shift+O) only matched an exact substring** — typing "gts" for
+  "GoToSymbol" found nothing. It now fuzzy-matches like Quick File Open, and each result shows a
+  muted kind marker (function, class, etc.).
+- **Breadcrumbs showed the file path only.** They now add the enclosing function/class at the
+  cursor's current position, e.g. `file.ts › handleSubmit`.
+
+_Bugs found and closed during the V2 hardening pass, plus carried-over live-test fixes from the same
+window._
+
+- **The app said "No model loaded" after start-up even though llama.cpp had loaded it.** The
+  window only re-checked every 30 seconds, skipped the check while anything was streaming, and
+  never listened for the server's own "model ready" signal. It now listens for that signal,
+  checks a few times quickly right after start-up, and re-checks the moment a reply finishes.
+- **A local model could loop inside its reasoning for minutes.** The loop detector only looked
+  at the visible answer, and only after the reply ended. It now watches the reasoning and the
+  answer while they stream and stops a runaway loop within a few words.
+- **Local models now get a sensible sampling floor** (repeat penalty 1.1, min-p 0.05, top-p
+  0.95, top-k 20) when you haven't set your own values — the usual guard against repetition on
+  quantised models. Your own settings, per-model overrides, Ollama and cloud providers are
+  untouched. Noted in Settings → Models.
+- **That sampling floor now follows the model actually serving your request, not just the app's
+  global preset.** Running the CLI against a local llama.cpp server while the app's own preset
+  is set to something else previously skipped the floor entirely; a Cloud Boost run over a local
+  base preset could have wrongly received it. Both now match the model doing the work.
+- **Closing the floating Sidechat window no longer cancels a run in progress.** It used to abort
+  the turn the instant the window lost its connection, the same way a stray tab-away used to
+  cancel a main chat before that was fixed — a Sidechat answer now keeps generating in the
+  background and is there when you reopen it.
+- **A sideloaded GGUF whose filename merely contained a catalog model's name inherited that
+  model's reasoning-depth contract.** Reasoning tiers now apply only to models downloaded from the
+  catalog.
+- **A local model with unreliable tool-calling could burn many extra tool calls stuck on a tiny
+  mistake before Bodega gave up and asked it to stop.** Bodega already gave capable models a
+  little more rope before intervening; it now gives less-reliable local models a little less,
+  instead of treating every model the same once it's doing agent work. Well-calibrated cloud and
+  large local models are unaffected.
+- **Bodega mirrored a hostile tone back.** The style-matching guideline now matches how much
+  you write, not how you treat it.
+- **Code Mode's context ring never filled or opened anything** — the budget was being stored
+  against the Chat session. Fixed.
+- **"Code-only in practice" was clipped in the Settings nav** — it reads "Code only" with the
+  full note on hover.
+- **The reasoning block vanished once a reply finished.** It now stays, collapsed, above the
+  answer; the live block is capped in height and scrolls.
+- **llama.cpp came up with no model on every cold start, even with a model selected.** After
+  each load, Bodega rewrote the selected-model setting to the server's full file path, which the
+  start-up check could not match. Path-shaped values now resolve, and the rewrite no longer
+  happens.
+- **Loading a model from Settings briefly killed it and loaded it again.** The settings save
+  behind the click queued a second load of the same file; it now joins the one in flight.
+- **The repeat penalty in the local sampling floor never reached llama.cpp.** It was being
+  dropped on the way out; it is now sent, for llama.cpp only.
+- **Qwen 3.8 running locally used the global temperature (0.4)**, which is the known repetition
+  trap for dense Qwen 3 models. It now gets the family's recommended 0.7 unless you set your own.
+- **The loop detector missed numbered loops** ("579. Filter / 580. Add a solution / …") because
+  the number changes every line. It now also compares lines with the numbers stripped.
+- **Chat Mode answers from a local model were acknowledgements instead of content** ("Alright,
+  here's the rundown." and then nothing). Every chat turn carried the full list of Code Mode
+  skills, and a mid-size local model spent its reasoning sorting your question into them. Chat
+  can't run skills, so the list no longer goes there; slash commands still work.
+- **"Quick Questions — what programming language?" popped up for an ordinary chat question.**
+  "Teach me how to make X, step by step" was read as a vague coding task. The interview now only
+  runs on turns that can actually create files.
+
+### Performance
+
+_Nothing feels slower, and a few things are measurably faster or lighter._
+
+- **The llama.cpp status poll runs only when llama.cpp is your provider** — it used to ask the
+  server for its status every second on every provider, forever.
+- **Language-server diagnostics no longer pile up for the life of the session** — they're dropped
+  when a file closes, the server goes away, or the client is disposed.
+- **Long agent runs no longer keep an unbounded transition log** (capped; the lifetime count is
+  still reported).
+- **Rate-limit pacing on OpenAI-compatible providers stopped over-counting your own system prompt
+  every turn**, which was adding long, needless waits between turns on small-tier keys.
+- **Memory check, for the record:** the backend holds ~590 MB idle and stays flat (+4 MB) across
+  20 chat turns, an agent run, and ten idle minutes — no leak.
+
 ## [1.0.0-beta.36] - 2026-08-20
 
 ### Security
 
+- **The agent browser's cookie isolation is now proven, not just asserted.** A new automated test
+  launches a real copy of the app's browser engine and checks, directly, that a cookie set while you
+  browse normally never reaches the agent's separate browsing session, and a cookie the agent picks
+  up never reaches yours. Previously this was only checked with a stand-in for the browser engine,
+  which could not actually prove the two stayed separate.
 - **A setting could be used to run commands on your machine.** The custom SSH
   key path in Git settings was passed to git in a way git interprets as a
   command line, so a crafted value could execute anything the app can execute —
