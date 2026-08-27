@@ -7,6 +7,189 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.38] - 2026-08-27
+
+### Added
+
+- **Device frames are now device-true.** Real Dynamic Island, punch-hole and home-button chrome
+  per phone, photoreal shells, and an OS status bar rendered inside the emulated safe area —
+  content that respects the inset visibly clears the island, exactly like the real device.
+
+- **New cloud models, live-verified 2026-08-27.** DeepSeek's `deepseek-v4-flash-vision-exp`
+  (image input, priced identically to V4 Flash) and Z.ai's `glm-5.3-flash` (multimodal, 1M
+  context) join the pickers, model profiles and pricing tables. GLM-5.3-Flash carries its 50%
+  launch discount until September 9, then reverts to list price automatically.
+
+- **Device-Frame Preview.** Preview a phone-sized build of your app: pick iPhone, iPad, Pixel or
+  Galaxy in the Preview toolbar and the page renders at that device's real viewport, pixel density
+  and user agent, inside a drawn device frame — with a rotate button. It is Chromium at device
+  dimensions, not an iOS simulator, and the tooltip says so.
+- **The Preview empty state can start your dev server for you** — one click runs your project's dev
+  script in a Terminal tab and connects when the port answers.
+- **Uncensored models in the catalog, opt-in.** An "Uncensored" filter in Discover (off by default)
+  reveals community-modified models with reduced refusals — each entry states who modified it, what
+  changed, and which claims are the author's rather than verified by Bodega. First entry:
+  SuperQwen 3.8 27B Abliterated (vision, tools, checksum-verified download).
+- **Mixture-of-experts models no longer show "doesn't fit" when your GPU and system RAM can carry
+  them together** — the model card says "Fits with CPU offload" and hands you the exact flag to
+  make it happen, with one-click apply. Bodega only claims a hybrid fit when it actually knows the
+  model's expert layout; unknown models keep the plain VRAM verdict instead of a guess.
+- **Machines with two or more GPUs get a multi-GPU editor in Advanced Flags** — per-GPU split
+  proportions and a split-mode picker. Single-GPU machines see nothing new.
+
+- **Eight new provider presets** (36 total): xAI direct (Grok without a router hop), Cerebras,
+  SambaNova, DeepInfra, Novita, Nebius (EU-hosted), and two local runtimes — TabbyAPI (exllama-family)
+  and SGLang. Each is a first-class preset with its base URL, auth expectations and health check
+  wired in, not a "custom endpoint" you have to configure by hand.
+
+- **Qwen3.8-Flash-Next recognized** (released 2026-08-26): the open-weight multimodal MoE preview of
+  the Qwen4 architecture now resolves with its real profile — 262K native context, vision, thinking,
+  ~180B MoE with 6B active — instead of falling back to 27B-dense assumptions. Honest limits: it is
+  not offered as a managed local download (the smallest GGUF is 72.5 GB and the architecture is not
+  in mainline llama.cpp yet), and the announced cloud id `qwen3.8-flash` is "available soon" with no
+  reachable API, so no cloud entry or pricing ships until it can be verified live.
+
+- **SuperQwen3.8-27b-abliterated recognized as a sideload**: the new full-BF16 refusal-edited
+  Qwen3.8-27B (Apache-2.0, vision preserved, author-corrected overthinking) gets correct sampling and
+  size when sideloaded, rather than inheriting the official 27B profile by filename accident. It is
+  deliberately not a managed catalog entry — the author's claims are unmeasured by us.
+
+### Fixed (wave 2, 2026-08-27)
+
+- **MCP tools with whole-number parameters work now.** Any connected MCP tool that declared an
+  integer parameter (most servers do — page sizes, limits, counts) had that parameter rejected no
+  matter what the model passed, so models fell back to unbounded calls that flooded their context.
+  Found live when a local model reading HQ channels couldn't cap "last N messages".
+
+- **DeepSeek weekend calls now bill at the off-peak rate.** DeepSeek's peak-hour pricing applies
+  Monday through Friday only; cost tracking previously charged the 2x peak rate on weekends too.
+  Already-recorded costs are not restated.
+- **GLM-5.1 pricing matches Z.ai's current card** ($1.40 in / $4.40 out per million tokens, with
+  a cached-input rate — the old launch rate is no longer published), and GLM-5.2/5.3 gained their
+  cached-input rates.
+
+- **A stuck Windows GPU query can no longer freeze the whole app's VRAM detection.** One hung
+  system call used to pin hardware info, model-fit checks and model launches behind a promise that
+  never settled — everything now recovers within 10 seconds, and a one-off detection failure is no
+  longer remembered as "0 GB VRAM" for the rest of the session.
+- **Page errors now show up in the Preview itself** — a small errors strip with counts you can
+  expand, instead of digging through DevTools.
+- **Killed your dev server? The preview reconnects by itself** the moment the port answers again.
+- **Pasting an external URL into Preview now tells you why it won't load** and offers to open it in
+  the Agent Browser instead of failing silently.
+- **The dev-only browser preview behaves like the real app when files are missing or operations
+  fail** — file search, @-mentions and quick-open no longer break in browser preview.
+
+### Security
+
+- **Air-gap now also blocks chat requests to a non-local Ollama or Anthropic address** — previously
+  only the OpenAI-compatible path was guarded at request time. It also skips the Cloud Boost health
+  probe entirely at startup when air-gap is on, instead of dispatching the probe and refusing it after
+  the fact.
+
+### Fixed
+
+- **A model that took the app down while loading is no longer loaded again on the next launch.**
+  Bodega now records which model it is about to load and clears that record only once the model
+  server is actually up. If the app (or the whole machine) goes down mid-load, the next launch does
+  not walk straight back into the same load — it stays idle and tells you which model it skipped,
+  with a button to try it again yourself.
+
+- **The model-crash message says what happened instead of guessing.** Every crash used to end with
+  "Try a smaller quant or check GPU memory", including crashes that had nothing to do with either —
+  one turned up on a machine with 31 GB of free video memory and a 15 GB model. The message now
+  quotes what the model server actually printed as it failed, says plainly when it printed nothing,
+  and no longer offers a cause it does not know. An internal "Sleep aborted" that could reach the
+  screen is gone too.
+
+- **Downloaded models are checked against the publisher's checksum before they are usable.** A
+  download that finishes at exactly the right size can still be wrong — a resumed transfer can stitch
+  together bytes that do not belong together, and no size check can see it. Bodega now verifies the
+  file's contents and discards it (with a clear message) if it does not match. Resuming a download
+  also now only happens when the server can confirm the file has not changed underneath us; otherwise
+  it restarts cleanly rather than risking a mismatched file.
+
+- **A model file that is still downloading is no longer offered as loadable.** Dropping a GGUF into
+  the models folder while it is still being written would index it at whatever size it had reached,
+  so the picker listed a half-finished 15 GB model as ready to use. Bodega now waits until the file
+  has stopped growing, and corrects the recorded size of any model whose file has changed since it
+  was first seen.
+
+- **Right-click menus now open downward from the cursor instead of upward over the panel above
+  them.** Right-clicking a file near the top of the Explorer opened its menu growing upward, covering
+  the panel header and the tab strip with the top of the menu cut off at the window edge. Every
+  right-click menu in the app — file tree, editor tabs, terminal, diagnostics, sessions and projects
+  — now opens below the click, flips above it only when there genuinely isn't room, and scrolls
+  inside itself rather than running off the top or bottom of the window.
+
+- **Context compaction no longer claims work it didn't do, and stops retrying a conversation it
+  can't shrink.** On small context windows the log could say "compaction triggered" over and over
+  while nothing was actually reclaimed — the line was written before the work, and the trigger kept
+  re-firing on a conversation made entirely of recent messages it wasn't allowed to touch. The log
+  now reports what was actually reclaimed, and after two back-to-back no-ops compaction waits until
+  the conversation has genuinely grown before trying again.
+
+- **A stuck local model now stops in seconds instead of silently burning the whole iteration
+  budget.** When every tool call the model makes keeps getting held back by a safety guard (for
+  example, it keeps re-reading instead of writing), the loop used to count each of those turns as
+  progress and spin all the way to the iteration limit — up to a minute of nothing on screen, then
+  the limit banner. It now notices a few of those no-op turns in a row, stops with what the model
+  had so far, and says the run ended early.
+
+- **Run traces now carry real numbers for local streaming calls.** Every streaming LLM call used to
+  log zero tokens and zero latency, which made a stuck run look identical to a healthy one in the
+  diagnostics export. Latency is now the measured call duration, and token counts fall back to an
+  estimate when the local server doesn't report them.
+
+- **The editor's active line is no longer bright red.** The theme handed the editor a colour format
+  it cannot parse, and its fallback for that is literal red. Every theme colour is now converted to a
+  form the editor accepts, so this whole class of accident cannot recur.
+- **The context inspector has a solid background again** instead of letting the panel behind it bleed
+  through.
+- **Code Mode's context sheet now dims the panel behind it** (click the dimmed area to close). Without
+  the dim, streaming text touched the sheet's top edge and read as bleeding through it.
+- **The "Active" badge on Settings → Prompts no longer gets cut off by the card edge.** The
+  Code and Chat default rows stopped shrinking to fit once one of them held a long option name, so
+  at narrower window widths the second badge was pushed past the edge of the card.
+
+- **Commit messages in the Source Control history fill the available width** instead of truncating
+  after a few characters however wide the panel was.
+- **Your OpenAI API key no longer travels to servers that are not OpenAI.** If `OPENAI_API_KEY` was
+  set in your environment, every OpenAI-compatible provider — a custom endpoint, LM Studio, vLLM —
+  silently used it as its auth token, sending it to whatever base URL was configured. The environment
+  fallback now applies only to OpenAI's own API; other endpoints use only the key you typed for them.
+- **A custom OpenAI-compatible endpoint without an API key works again.** Auth is optional for the
+  Custom provider, but part of the app treated a missing key as "not configured", so chat said the
+  custom API was not set and the model picker showed it as unreachable while Settings looked correct.
+- **Opening the model picker or checking a provider's health under Air-Gap mode no longer makes a
+  real network call.** Everything that actually sends a chat message was already blocked; two
+  background checks — refreshing the model list and the provider health badge — weren't, so a
+  non-loopback endpoint (a custom API, a LAN server) could be probed over the network while Air-Gap
+  was on. Both now refuse the same way the rest of the app does, and fail quietly instead of erroring.
+- **MiniMax's health badge no longer shows "unhealthy" for a working key.** MiniMax has no `/models`
+  endpoint to check against, and the health check was always using one anyway — it now checks the
+  endpoint each provider actually has.
+- **A saved Ollama URL takes effect immediately** instead of only after restarting the app. Changing
+  it (or an Azure resource name) used to update Settings but leave the app talking to the old address.
+- **Provider connection errors say what's actually wrong.** "Local server unreachable" no longer shows
+  up for a Custom or Remote endpoint that isn't local by design — those now point at the base URL and
+  key instead. A cloud provider returning zero models now distinguishes a rejected API key from a
+  connection problem instead of always saying the same generic thing.
+- **vLLM now gets its repetition-loop-prevention sampler.** It never reached vLLM under either its
+  own field name or llama.cpp's, so a vLLM-served model had no defense against getting stuck
+  repeating itself — every other local backend already had this protection.
+- **Spending shows "no price data" instead of a made-up number for Concentrate and Featherless.**
+  Both used to bill every call at the same flat guess regardless of which model was actually used —
+  now a call with no real price on file is labeled honestly rather than presented as an accurate
+  charge. Z.ai was already priced correctly for its GLM models; a stale comment overclaiming this
+  for Concentrate was corrected too.
+- **Streamed responses through MiniMax and Concentrate now report a cost** instead of silently
+  showing nothing. Neither provider sends the usage data streaming responses need, so the app now
+  estimates it from the response length rather than reporting zero.
+- **A corrupted usage report from a streaming provider no longer gets treated as "this response cost
+  nothing."** A malformed accounting frame used to look like a confident zero; it now falls back to
+  an estimate instead.
+
 ## [1.0.0-beta.37] - 2026-08-23
 
 _V2 hardening pass (2026-08-23) — no new features, just making what's already here work the way it
@@ -15,6 +198,13 @@ otherwise; each lane appends its own lines under the matching heading._
 
 ### Added
 
+- **8 new provider presets: xAI (Grok), Cerebras, SambaNova, DeepInfra, Novita, and Nebius AI Studio
+  (cloud), plus TabbyAPI and SGLang (local).** xAI is now reachable directly instead of only through
+  OpenRouter or Concentrate; Cerebras and SambaNova are built for raw speed; DeepInfra and Novita are
+  low-cost open-weight hosts; Nebius is EU-hosted. TabbyAPI adds an ExllamaV3 (EXL3) local runtime
+  option alongside llama.cpp/vLLM, and SGLang is a multi-GPU step up from vLLM for self-hosting. The
+  six new cloud providers show real token usage in Spending, but Bodega has no price data for them
+  yet, so their cost shows as unpriced rather than a guessed estimate until pricing data exists.
 - **The agent browser reads a page as a short, labeled list of clickable things instead of raw
   HTML.** A new `getSnapshot` action lists links, buttons and fields with short refs (`e3`), flags
   hidden elements, and is a few hundred tokens instead of eight thousand characters; the agent can
