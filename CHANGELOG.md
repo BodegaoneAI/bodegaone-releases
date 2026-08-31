@@ -344,13 +344,6 @@ otherwise; each lane appends its own lines under the matching heading._
 
 ### Added
 
-- **8 new provider presets: xAI (Grok), Cerebras, SambaNova, DeepInfra, Novita, and Nebius AI Studio
-  (cloud), plus TabbyAPI and SGLang (local).** xAI is now reachable directly instead of only through
-  OpenRouter or Concentrate; Cerebras and SambaNova are built for raw speed; DeepInfra and Novita are
-  low-cost open-weight hosts; Nebius is EU-hosted. TabbyAPI adds an ExllamaV3 (EXL3) local runtime
-  option alongside llama.cpp/vLLM, and SGLang is a multi-GPU step up from vLLM for self-hosting. The
-  six new cloud providers show real token usage in Spending, but Bodega has no price data for them
-  yet, so their cost shows as unpriced rather than a guessed estimate until pricing data exists.
 - **The agent browser reads a page as a short, labeled list of clickable things instead of raw
   HTML.** A new `getSnapshot` action lists links, buttons and fields with short refs (`e3`), flags
   hidden elements, and is a few hundred tokens instead of eight thousand characters; the agent can
