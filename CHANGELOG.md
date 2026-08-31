@@ -7,6 +7,152 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.39] - 2026-08-31
+
+### Fixed
+
+- **Your messages keep their `<` and `>` characters.** A server-side safety filter was silently
+  deleting every angle bracket from everything you sent — pasted code lost its generics
+  (`Array<string>` became `Array string `), JSX was mangled, and file attachments broke because
+  the attachment wrapper itself was stripped, which is what made attaching a document trip the
+  "message too long" error. Message content now passes through untouched; the filter still
+  applies to non-content fields like titles and names.
+
+- **Attaching a document no longer trips the message-length limit.** Attaching a file through
+  the composer could get the whole message rejected with "exceeds maximum length" — the input
+  guard was counting the document's content as if you had typed it. Attached files are exempt
+  (the model's context window is the real limit); an over-long typed message is still refused.
+- **The "Model not loaded" notice can be dismissed.** The banner that appears when a model's
+  previous load never finished had no close button — the only way out was loading the model.
+  It now has one, and dismissing it only hides the notice for that model; a different blocked
+  model still shows it.
+
+- **Bodega Routing now routes the way the Routing page describes it.** Four things it promised but
+  didn't do: a step that ran a shell command (a `git commit`, an `npm install`) was treated as a
+  "read" and handed to your fast model — it now stays on your smart model, like any other step we
+  can't call safe. The list of "read" tools was also missing most of the real ones, so code search,
+  symbol lookup, diagnostics, diffs and doc lookups never reached your fast model; they do now, and
+  two names in that list had been dead for so long they could never match anything. Steps where
+  Bodega is re-checking failed work now genuinely count as verification, which means a rule you
+  wrote for `verify` steps will finally fire instead of sitting there doing nothing. And a routing
+  rule limited to local-only models now reads the model your session is actually on, rather than
+  whatever provider is set globally.
+
+### Changed
+
+- **Settings → Routing describes routing honestly.** The page claimed every routed step is shown
+  and never a silent switch. What actually happens: the step list appears under the reply once a
+  run finishes, only when the run used more than one model, and only for that run — it isn't kept
+  once you send again. The page now says that, and says plainly that shell steps stay on your
+  smart model.
+
+- **The licensing copy now says what is actually true: the beta is free.** Settings → About and
+  the README used to mention a one-time commercial price. That language is gone while we decide
+  how to license the source. Bodega One is free for everyone during the public beta — the only
+  ask is that you don't redistribute, resell or rebrand it.
+
+### Added
+
+- **Device-Frame Preview picks the right content model for ordinary websites.** A new default
+  "Browser" mode renders the page below the drawn status bar and above the home indicator —
+  the way a site looks in Safari — with the viewport size reported honestly and no phantom
+  safe-area insets. "Edge to edge" keeps the full-bleed model for apps that handle insets
+  themselves. Desktop scrollbars are hidden while a device frame is active.
+
+### Fixed
+
+- **Clicking a search result in Settings now takes you to the setting.** Searching Settings
+  for, say, "safety" and clicking **Privacy & Safety** left the search results covering the
+  page — you had to clear the search box with the X before the section appeared. Picking a
+  section from a search now ends the search and shows the page. Help &amp; Docs works the same
+  way, and a docs result that matched a specific topic now scrolls to that topic instead of
+  the top of the page.
+- **A tool approval could appear with no way to answer it.** Asking the agent for something
+  that needed your permission could leave it sitting on "Thinking" until you restarted the
+  session — the approval was waiting, but no Allow or Reject ever appeared. Approvals now
+  always offer a decision, are never hidden behind an expander, and say plainly when the
+  tool's details didn't come through.
+- **The Agent, Research, Debug and Advisor panel tabs are announced correctly** by screen
+  readers.
+- **Opening the Agent Browser no longer crushes the Agent panel.** The panel could be
+  squeezed to a sliver, pushing the Debug and Advisor tabs off the edge of the window with
+  nothing on screen to suggest the tab strip scrolled — two tabs unreachable, and no way to
+  guess they were there. The panel now keeps a minimum width, and a tab strip that scrolls
+  shows that it does.
+- **Side-loaded GGUF models are now inspected on import.** Bodega reads the model's own chat
+  template to tell whether it supports tool calling, instead of assuming it doesn't — models
+  that need their own template now get it. Where Bodega can't tell, the model is marked
+  "plain template" in My Models with the reason, rather than quietly producing worse results.
+  Models you already added are re-checked automatically.
+- **A session with no project attached no longer reports a git branch.** The status line
+  belonged to whatever directory the app was launched from, not to anything in the session —
+  it now appears only when a project folder is actually attached.
+- **The "model substitution" warning fires once per model pair, not on every request.** With a
+  local llama.cpp model it logged the same warning on every single call (the server reports the
+  loaded file's path as its model name), burying real warnings. A genuinely new substitution
+  mid-session still warns immediately.
+- **A local model is no longer reported as having been swapped for itself.** llama.cpp answers
+  with the loaded file's path where other providers answer with a model name, so Bodega read
+  "you asked for this model and got that file" as a substitution. It now recognises the two as
+  the same model: no warning at all, and usage and cost are recorded against the model you
+  picked instead of a file path that matches nothing. A provider that really does serve a
+  different model is still reported, and still recorded as what actually ran.
+- **The agent stops chasing things you mention in passing.** Telling it something was fixed
+  elsewhere — in another repo, by another tool — could send it hunting through the current
+  project for evidence that was never there, spending a dozen turns after the actual work was
+  already done. Such remarks are now treated as context, not as a task.
+- **The Context Inspector reports the tool set the model actually receives.** With deferred
+  tool loading active it listed every registered tool (51) while the model's native set was the
+  ~15-tool core — overstating both the tool list and the system-prompt token estimate. It now
+  applies the same visibility filters as the real request path, deferred loading included.
+- **The Explorer file tree fills its panel.** It stopped part-way down with empty space below
+  and a scrollbar that appeared before it was needed, whenever the app was opened before a
+  project.
+- **Quieter logs.** Four spots trained you to ignore the log line that matters: an optional
+  per-project config file logged a full error stack every time it was simply absent (a real
+  read error on a config that DOES exist still logs, loudly); the Cloud Boost status check
+  logged a line every 30 seconds even with Boost off, forever — it now logs only when the
+  status actually changes; a webview navigation cancelled by a newer one landing first no
+  longer warns (a navigation that's still current and genuinely fails still does); and the
+  Context Inspector's 12-second background refresh only logs when what it assembled actually
+  changed, not on every repeat. That same refresh was also quietly computing the compact-prompt
+  cutoff as if every local model were cloud-hosted — display-only, now fixed.
+
+- **Long local sessions no longer lose the original request when memory gets tight.** When Bodega
+  summarizes older conversation history to make room, it asks your own local model to write the
+  summary — on the same server that is already answering you. If that server was busy, the summary
+  request timed out, and Bodega fell back to plainly cutting old messages instead. In one session
+  that cut removed the request the whole task was about, and the final answer read like an answer to
+  nothing. Now a busy model means Bodega waits and tries again on the next step rather than cutting
+  anything, and if it ever does have to cut, your original request is kept.
+- **"Couldn't summarize" no longer looks like "nothing to summarize" in the logs.** The two used to
+  print the same line, so a session where summarizing never ran at all was indistinguishable from
+  one where it ran and had nothing to do.
+
+- **A forced answer now says so.** When the agent stops because it hit a limit — it stopped
+  narrating and answered early, ran out of steps, or ran out of time — instead of the model
+  deciding it was done, the response now carries a small note explaining why, so you can tell a
+  considered answer from one that got cut off mid-thought. The note survives closing and reopening
+  the session.
+
+### Changed
+
+- **Model Roles is simpler.** Settings → Models → My Models now shows four role pickers instead
+  of eight — Default, Fast, Smart, and Agent, the ones that actually affect what answers you. The
+  rest (Chat, Research, Debug, Advisor) moved behind an "Advanced: per-panel overrides" section you
+  can open when you need them. Nothing you had assigned was changed or lost.
+- **If your setup can only run one model at a time** (llama.cpp, LM Studio, KoboldCpp, GPT4All,
+  MLX, TabbyAPI), the role pickers no longer pretend you can assign eight different models. You'll
+  see one card that names the model you actually have loaded and explains that every role uses it.
+  Previously you could fill in all eight pickers, hit Save, and nothing would happen — with no
+  explanation why.
+- **The VRAM warning now checks every role you've assigned**, not just Chat and Agent — so setting
+  a different model for Fast, Smart, or an advanced override now gets the same "this might not fit
+  your GPU" heads-up.
+- **Responses now say which role answered.** When a message was handled by Fast, Smart, or Agent
+  rather than your Default model, a small label next to the model name in the response shows which
+  one served it.
+
 ## [1.0.0-beta.38] - 2026-08-27
 
 ### Added
