@@ -7,6 +7,60 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.39.1] - 2026-09-01
+
+A pure-fix release. No new features — ten harness fixes found by driving the shipped beta.39
+against a local 27B model end to end, each verified against the beta.39 tag rather than against
+development. The headline is that an agent in Act mode could report an hour of tool calls and
+leave nothing on disk.
+
+### Fixed
+
+- **Act mode actually grants write autonomy in the app.** Selecting the mode the app labels
+  "Act — Full autonomy to complete tasks" left every chaperone rail in place, because the rail
+  that stands down required the run to be *headless* — and a desktop session never is. The
+  practical result was runs that reported tool calls for hours and wrote **zero files**: a
+  contract gate answered every file write whose name the prompt had not happened to mention with
+  a silent "skipped". The write whitelist now keys on the autonomy you granted rather than on
+  whether a window is attached. The capability gate, `agent.force_guardrails`, and the stricter
+  rule for spawning prompt-derived shell commands are unchanged.
+
+- **A turn that runs out of budget mid-thought is retried differently, not identically.** On a
+  model whose reasoning is longer than its output budget, every turn was truncated by
+  construction and returned nothing — and the retry re-sent the same request, so it failed the
+  same way. The loop now raises the output budget to the context window's ceiling first (keeping
+  the reasoning intact), suppresses reasoning only when a larger budget was already tried or
+  there is no headroom to try one, and strips dead reasoning from history last.
+
+- **A tool call cut off mid-JSON is recoverable, not a dead run.** Generation stopping inside a
+  tool call's arguments produced a parse error that nothing in the loop recognised, killing the
+  run outright. It is now detected — on both the arguments framing *and* the parse failure, so
+  genuine server faults stay terminal — and retried once with reasoning actually disabled on the
+  wire.
+
+- **A starved context exits honestly instead of grinding.** Three consecutive material
+  post-compaction trims now end the run with a stated reason and a user-visible "Context
+  pressure" line, rather than looping on a window that can no longer hold the task.
+
+- **"Thinking: Off" now actually turns thinking off.** On llama.cpp and Qwen models, the reasoning
+  effort chip was checked before the off switch, so whenever a tier was selected — and the chip
+  offers no "off" — the request went out with thinking enabled regardless. Choosing off is a
+  decision, not a preference, and it now wins. Leaving the dial untouched still lets the model's
+  own default stand.
+
+- **A model that is working is no longer cut off for "talking too much."** The cap that stops a
+  model narrating instead of acting was also counting the nudges sent to a model that *was*
+  acting — so a run that had written its files and was fixing its own build errors could be
+  stopped mid-repair, a third of the way through its budget. The cap now counts only prose that
+  arrived instead of work.
+
+- **A model that quietly loaded on the CPU now says so.** When another program is holding video
+  memory, llama.cpp can fall back to the CPU, answer normally, and report itself ready — while
+  running many times slower, with nothing on screen explaining why. That fallback is now detected
+  and named, with the likely cause (another app holding video memory) and what to do about it. A
+  deliberate CPU run, and the normal partial split for a model slightly larger than the card,
+  stay silent.
+
 ## [1.0.0-beta.39] - 2026-08-31
 
 ### Fixed
