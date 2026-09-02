@@ -7,6 +7,176 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.40] - 2026-09-02
+
+Runs are governed by progress now. The step and time limits became ceilings a run grows toward while
+it keeps landing files, fixing tests and getting a build to compile, and a run that stops making
+progress ends early and says why. Measured on three real projects against a local 27B model — a Rust
+TUI that was deadline-cut with four compile errors before now finishes clean in 37 minutes after four
+earned extensions. Around it: Fable 5.1 in the picker, a last-minute hardening audit (an API endpoint
+that ran tools with no key, a git-hook edit that needed no approval), and twenty-two harness fixes
+found by driving the shipped build and building its output by hand.
+
+### Added
+
+- **Fable 5.1 is in the model picker.** Same tier and price as Fable 5 ($10/$50 per million
+  tokens), 1M context, and a 1M picker variant for parity with the rest of the family. Two things
+  about this model are new and both are handled: cache reads cost a quarter of the rate every
+  other model in the family uses, so cost estimates carry the real $0.25 figure rather than a
+  derived one; and its reasoning is tied to the exact conversation that produced it, which
+  Bodega's per-turn context refresh would otherwise trip on every second call. Bodega now asks the
+  API to drop stale reasoning and continue instead of failing, and logs when that happens.
+
+### Changed
+
+- **Runs are now governed by progress, not by a fixed step count or clock.** The iteration limit and
+  the time limit still exist as absolute ceilings, but a run that keeps making progress — new files,
+  fewer failing tests, a build that starts compiling — earns more budget automatically, and a run that
+  stops making progress ends early and says why. Cloud runs also get a per-run spend cap. Three new
+  settings under Agent: the iteration ceiling, the time ceiling, and the spend cap. The model is told its
+  remaining budget and recent progress every turn, so it can plan to finish rather than be cut off.
+- **Settings → Agent shows the three run ceilings** (iterations, time, per-run spend), with ranges,
+  in place of the Max Workers control that no longer governed anything. The help pages for Code
+  Mode, AI panels, automations, CLI and spending now describe how a run's budget grows and stops.
+
+### Fixed
+
+- **The local API server's agentic endpoint now refuses to run without an API key.** With no key
+  set, the built-in server accepted every request as "open access", and that endpoint runs tools on
+  your machine. It now answers 403 until a key is set under Settings, and says so.
+- **`str_replace` can no longer edit git hooks or `.git/config`.** The full-file write tool already
+  refused those paths; a surgical edit to `.git/hooks/pre-commit` needed no approval in Act mode and
+  would have run on your next commit.
+- **`run_tests` and `delegate_subtask` count as writes.** In Ask mode they were treated as reads and
+  ran the project's test script without asking.
+- **MCP tools with nullable or union parameters work again.** A parameter typed `["string","null"]`
+  or with `anyOf` was rejected before the tool ever ran.
+- **The Embeddings rebuild button reports failure.** It logged the error and left the button as if
+  nothing had happened.
+- **The shell tool is described as running cmd.exe on Windows, because it does.** The prompt and
+  the tool description said PowerShell, so models wrote PowerShell that failed.
+- **Long non-streaming local calls (compaction summaries, memory extraction, the reflector) no
+  longer fail as "Could not connect" after 8 seconds.** A non-streaming request sends no headers
+  until generation finishes, and the connect timer wrapped the whole call.
+- **The compactor's own "is the window full" check now uses the same rule the callers use.** It
+  measured message content only, so a tool-heavy history read as not full and compaction did nothing
+  until the hard trim did the work.
+- **The per-turn budget line no longer breaks the prompt cache or the reasoning round.** It rode as a
+  trailing system message; Anthropic folds every system message into one string that then changed
+  every turn, and the OpenAI-compatible wire demoted it to a user turn. It now lives in the per-turn
+  block that already changes every turn.
+- **Reattaching to a run in progress keeps the finish frame's details.** After a reconnect, an error
+  finish or a forced stop read as a clean finish because only the text made it through.
+- **A `-pro` or `-fast` variant OpenAI does not have a price for no longer inherits the base
+  model's rate.** `o3-pro` was billed at the `o3` rate. The reverse match in the boost tracker, which
+  priced a short id at whatever longer key happened to start with it, is gone too.
+- **The fleet "files changed" count only counts writes.** Reads and directory listings were counted
+  as changed files.
+- **The "extend the run?" card no longer feeds the approval-learning ledger or the rejection circuit
+  breaker.** Declining it was recorded as a human "no" to a tool.
+- **The null-turn recovery leaves room for the prompt when it raises `max_tokens`.** The ceiling was
+  half the window with no prompt term, so the raise could be silently truncated.
+- **A run the repetition guard cut short now says so.** When the agent kept making the same edit or
+  the same call, the loop stopped it and graded what existed, but the answer read like a finish the
+  model chose. It now carries a trailer naming the repetition, runs the build check the other forced
+  stops run, and records the reason on the message so the CLI reports it too.
+- **Reconnecting to a run that died mid-stream no longer looks like a clean finish.** If the
+  connection closed before the run's final frame arrived, the partial text is now marked as possibly
+  incomplete instead of being shown as the answer.
+
+- **The "model loaded on the CPU" notice now reaches the screen.** The previous release detected a
+  quiet CPU fallback and wrote it to the log, and its notes said you would see it. You would not have:
+  nothing in the app listened for it. It now appears in the chat status line, with the likely cause
+  and what to do, whether the model loaded during your first message or earlier from the Models page.
+- **Rust projects get an automatic build check after the agent writes code.** TypeScript, Python and
+  Go projects already did; a Cargo project got nothing, so a broken build could reach "done" unless
+  the model thought to run cargo itself. Bodega now runs `cargo check` after writes and hands the
+  compiler's errors back to the model to fix.
+- **Act mode stops cutting a capable model's run short on its third edit to one file, and stops turning
+  its edits into reads.** Two more rails from the same family as last release's fix still decided by
+  whether a window was attached rather than by the mode you chose. Both now follow the mode. A small
+  or weak model keeps every rail, as before.
+- **The agent is no longer told to stop working while it is fixing a failing build.** After three
+  read-only turns following a write, Bodega used to tell the model that everything had been created
+  successfully and to write its final answer — including when the model was reading files to fix
+  compile errors it had just been handed. That message now waits while a build is failing, and no
+  longer claims a success nothing checked.
+- **A local model's context is no longer two-thirds old thinking.** On llama.cpp and other
+  OpenAI-compatible hosts, Bodega replayed the model's reasoning from every previous turn back into
+  the prompt. Qwen's own guidance is not to, and on a 57k-token window that was the difference between
+  compacting at iteration 18 and not compacting at all. Reasoning is now sent back only for the current
+  round, which is what the one provider that requires it (DeepSeek) actually needs.
+- **The context estimate is calibrated to what the model actually counts.** Bodega guessed 2.6
+  characters per token for everything; this run's Rust code measured 3.82 on Qwen3, so the estimate ran
+  1.5x high, reported "over 90% full" at two-thirds, and on that false reading trimmed history — and
+  dropped the original task — thirteen turns in a row. llama.cpp is now asked to report real prompt
+  sizes (it always could), the estimate calibrates to them after the first call, and the overflow path
+  never drops the message that holds the task. The same over-count lived in the mid-run compaction
+  budget, which read a one-fifth-full window as 127–196% full and reported "nothing to compact" three
+  times: earlier rounds' thinking is not resent to the model, and is no longer counted as if it were.
+- **The end-of-run file list names each file once.** It used to list every write, so a file rewritten
+  three times appeared three times and the count was of writes, not files.
+- **"Scaffold the whole project" now means something concrete.** A from-scratch prompt that named no
+  files produced a contract with nothing to check, so a project with a 54-byte main file could be
+  reported as finished. Such prompts now require the ecosystem's manifest and entry point (and the
+  README when asked for), and a placeholder entry point does not count as written.
+- **Installing or adding a dependency from the shell now re-grounds the model on the project's pinned
+  versions.** The version note used to fire only after Bodega wrote a manifest itself; `cargo add`,
+  `npm install` or `pip install` from the shell left the model guessing at APIs for versions it
+  had just installed.
+- **A turn spent entirely on thinking no longer nudges the sampler as if the run were stuck.** The
+  recovery for that case already changes the next call; heating the temperature on top of it made
+  the retry different for the wrong reason.
+- **"Tell me the results" no longer turns a build into an edit.** A prompt that asked Bodega to
+  scaffold a project and finished with "run the tests and tell me the results" was classified as a
+  modification of existing files, which switched off the per-file proof checks that creation tasks
+  get. The opening request now decides what kind of task it is.
+- **The build check at the end of a run reads coloured test output correctly.** pytest prints its
+  summary in colour even when asked not to, and the colour codes hid the failure count from the
+  check, so a run that ended with 4 failing tests was reported as "Build check: passed". Colour is
+  now stripped before the result is read, and pytest is told not to colour at all.
+- **An approval nobody answered is no longer counted as a "no".** When a tool approval sat
+  unanswered for five minutes, Bodega recorded it exactly like a rejection: it told the model
+  "rejected by user" and counted it toward the rule that warns about a tool after three
+  rejections. A timer running out is not a decision. The model is now told nobody answered, and
+  nothing is learned from it.
+- **The Code Mode permission mode survives a reload.** Ask, Plan or Act was saved but never read
+  back, so every launch quietly reset the panel to Ask.
+- **Pressing Stop no longer shows "Request timed out".** Stopping a run was reported as the
+  model taking too long, with advice to pick a faster model. A stop now just ends the turn.
+- **A tool call cut off by the output budget no longer kills the session.** When a local model ran
+  out of output tokens partway through writing a file, the half-written call was replayed to the
+  model on every later turn, and llama.cpp refused each request outright. A seven-minute run
+  ended with three files and a raw server error on screen. The cut-off call is now replaced with a
+  short note of what happened before it goes back to the model, so the run continues.
+- **A run cut by the time limit says so, and reports the build.** The time-limit exit recorded itself
+  but showed a mid-sentence answer with no note; only the iteration limit had one. Both now do, and on
+  a forced stop in a code project Bodega runs the project's build check and appends the result, so a
+  cut-off run ends with "build: 4 errors" rather than silence.
+- **The agent is told which library versions the project actually pins.** On the first write in a
+  project with a manifest, Bodega reads the lockfile (or the manifest) and hands the model the exact
+  versions of its direct dependencies, with where to look if it is unsure an API exists in that
+  version. The note repeats only when the pins change. This was the cause of the last measured run's
+  twenty compile errors: the model had pinned one version of a library and written code for another
+  from memory, and nothing told it.
+- **Gateway providers now bill at the gateway's own price, not the upstream model's.** A call through
+  DeepInfra, Fireworks, Together, Novita or SambaNova used to be priced at whatever the model's
+  original vendor charges, because the price table only knew model names. DeepInfra charges 50%
+  more than Anthropic for Sonnet 5, Fireworks charges a fraction of Moonshot's rate for Kimi, and
+  both were billed wrong in opposite directions. Each of those providers now has its own price
+  list, sourced from its own pricing page, and a model it doesn't list shows as unpriced rather
+  than borrowing a number. DeepInfra, Novita, SambaNova and Together also get a short curated model
+  list of coding models with a published rate.
+- **GPT-5.6 Sol was billing at its old rate.** OpenAI cut Sol to $4.00 per million input tokens
+  and $20.00 per million output, and Bodega was still charging the previous $5.00/$30.00 — 25%
+  over on input and 50% over on output. Cost estimates and the price badge both move; they had
+  agreed with each other and were wrong together. Found by a new weekly check against the
+  providers' own pricing pages, which is the only thing that can catch this class: the rate was
+  correct the day it was written, and went stale because the vendor changed it, so no test in the
+  codebase could have failed.
+
+---
+
 ## [1.0.0-beta.39.1] - 2026-09-01
 
 A pure-fix release. No new features — ten harness fixes found by driving the shipped beta.39
@@ -57,9 +227,10 @@ leave nothing on disk.
 - **A model that quietly loaded on the CPU now says so.** When another program is holding video
   memory, llama.cpp can fall back to the CPU, answer normally, and report itself ready — while
   running many times slower, with nothing on screen explaining why. That fallback is now detected
-  and named, with the likely cause (another app holding video memory) and what to do about it. A
-  deliberate CPU run, and the normal partial split for a model slightly larger than the card,
-  stay silent.
+  and named in the log, with the likely cause (another app holding video memory) and what to do
+  about it. A deliberate CPU run, and the normal partial split for a model slightly larger than the
+  card, stay silent. *(Corrected 2026-09-01: in this release the notice reached the log only, not
+  the screen — see the next release's entry.)*
 
 ## [1.0.0-beta.39] - 2026-08-31
 
