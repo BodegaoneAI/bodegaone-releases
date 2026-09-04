@@ -7,6 +7,100 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.41] - 2026-09-03
+
+Sub-agents. The agent can hand a focused task to another agent that runs on its own provider and
+model and get its report back: a built-in `delegate` that edits inside a throwaway copy of your
+project with its diff verified before anything lands, a read-only `researcher`, and any custom agent
+you mark as spawnable. A sub-agent can run in the background while you keep working, and you can
+click it to watch every tool call as it happens. Off by default, with its own spend cap, and only one
+local sub-agent at a time because two models generating on one GPU is where things fall over. Before
+it shipped it was driven hard across local and cloud model combinations on a single 5090: eighteen
+defects found that way are fixed here, and the whole branch passed the full local gate.
+
+### Added
+
+- **Sub-agents.** The agent can hand a focused task to another agent that runs on its own provider and
+  model, and get its report back. Two built-ins: `delegate` edits inside a throwaway copy of your project
+  and its diff is verified before anything lands, `researcher` runs read-only and reports. Any custom
+  agent can be one too: Settings → Custom agents now has Runs on, When spawned as a sub-agent, Reasoning
+  effort, and a switch for whether the main agent may spawn it. Off by default under Settings → Agent,
+  with its own per-sub-agent spend cap, because several local models on one GPU is where things fall over.
+  A sub-agent cannot spawn sub-agents, cannot use the shell unless you opt in, and a cloud one is refused
+  under air-gap. This replaces `delegate_subtask`, whose settings carry over as the `delegate` built-in.
+- **A sub-agent can run in the background.** The agent hands off a task and keeps working; the report
+  arrives on a later turn rather than blocking. A strip under the conversation shows each sub-agent
+  while it runs, what it did when it finished, and what it cost — a sub-agent whose work failed
+  verification says its changes were discarded rather than reading like a success. Only one sub-agent
+  on a local provider runs at a time, whatever the overall limit is, because two models generating on
+  one GPU is the thing that falls over. A background sub-agent may outlive the turn that started it
+  and report on the next one; stopping the run, or the run failing, stops its sub-agents.
+- **A run's spend cap covers its sub-agents, and it counts as you go.** The cap is what the whole run may
+  cost, sub-agents included, and a run stopped by it says how much of the total went to them. Cloud
+  spend used to be recorded only after a run finished, so a cap could only see money already spent
+  by something else; the run's own calls are now estimated live, which is what lets a sub-agent's own
+  smaller cap actually stop it mid-run.
+- **Unattended runs can use sub-agents, if you ask.** They are off by default in the CLI, Loops and
+  background runs, because nobody is watching one and a run that can spawn its own agents compounds
+  time and spend. `bodega run --subagents` turns them on for a single run; there is a matching switch
+  under Settings. A sub-agent still can never spawn a sub-agent — that limit is enforced separately and
+  no setting relaxes it.
+- **Exporting a custom agent now exports how it was configured.** The JSON bundle was dropping the
+  agent's model provider and its sub-agent settings, so an agent came back from its own export blanked.
+  It carries them now. It still never carries whether the main agent may spawn it: an imported agent
+  arrives inert and you turn that on yourself.
+- **A cloud model can delegate to a local one.** `delegate_subtask` used to refuse whenever your main
+  provider was a cloud one, because it checked *your* provider rather than the delegate's. A new
+  setting under Mixture, "Delegate runs on", picks the sub-agent's provider (Ollama first: it serves
+  any pulled model by name without unloading yours), with the model named next to it. The sub-agent
+  runs on its own provider inside its worktree, and its usage is now recorded against your session,
+  so a run's spend cap counts it. First slice of the sub-agent work.
+
+- **Click a sub-agent to watch it work.** The strip under the conversation now opens: each
+  sub-agent shows which agent and model it is, how long it has run, what it has cost, every tool
+  call as it happens, and its report when it finishes. What a tool returned never leaves the
+  backend; only the call itself is shown.
+- **The agent knows which sub-agents it may use.** Its prompt now lists the two built-ins and every
+  custom agent you have marked as spawnable, with the provider and model each one runs on. Before
+  this, a custom agent's name was never told to the model, so asking it to use one by name often did
+  nothing.
+- **A sub-agent that stopped for a reason says so.** When a sub-agent hits its own spend or iteration
+  cap, the main agent is told why it stopped instead of only that it produced nothing.
+- **A sub-agent lost to a restart is reported, not forgotten.** If Bodega restarts while a
+  background sub-agent is running, your next reply says that it was lost and that none of its work
+  was applied.
+- **`bodega agents`** in the CLI lists your custom agents, where each one runs, and whether the main
+  agent may spawn it.
+
+### Fixed
+
+- **A custom agent picked as the main agent now runs on its own provider.** A DeepSeek or OpenRouter
+  agent chosen from the agent dropdown was being sent to whichever provider was active, and failed
+  with "model not found". The agent's own provider wins now.
+- **A sub-agent's fix is no longer thrown away because your test suite was already red.** The check
+  that verifies a sub-agent's change runs your project's tests, and it used to refuse on any
+  failure, including ones that were failing before the sub-agent touched anything. It now records
+  which tests were already failing and only refuses when the sub-agent's change breaks something
+  new.
+- **OpenRouter costs were sometimes wildly overstated.** A run on OpenRouter could be billed at a
+  placeholder rate instead of the model's real price, in one case a hundred times too much, which
+  could also trip a spend cap for no reason. Live prices are now fetched before a cost is recorded.
+- **Sub-agents now hold up under real, hands-on testing.** Live testing across local model
+  combinations turned up fourteen problems and all fourteen are fixed: a sub-agent could go
+  unnoticed by a smaller local model because it wasn't listed among the model's available tools;
+  a local sub-agent could fail to load or could send the wrong model name to Ollama or llama.cpp;
+  a sub-agent's correctly-fixed and tested code could get thrown away instead of applied, and its
+  temporary working copy could get left behind on disk; calling a sub-agent now correctly asks for
+  your approval first, the same as any other action that changes files; a background sub-agent's
+  report now always arrives on your next reply, even if that reply is just answering a question;
+  stopping a run now reliably cancels any sub-agent that was still working, instead of letting a
+  cancelled sub-agent's changes get applied anyway; and a research-only sub-agent can now actually
+  read your project's files, rather than having nothing useful available to it.
+- **A sub-agent that doesn't fit your GPU's memory alongside your main model is now refused up
+  front if it would run in the background** (rather than causing your GPU to keep swapping models
+  back and forth on every message), while a foreground sub-agent is still allowed with a one-time
+  model swap.
+
 ## [1.0.0-beta.40] - 2026-09-02
 
 Runs are governed by progress now. The step and time limits became ceilings a run grows toward while
