@@ -7,6 +7,140 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.42] - 2026-09-11
+- **Run a chat on Claude Code, Codex, Gemini CLI or Cursor, inside Bodega.** A new harness control in the
+  composer lists the coding agents installed on your machine. Pick one and the next turns run there, with your
+  project rules, memory and conversation handed over, its edits going through Bodega's approvals, and a review
+  card at the end of every turn showing what changed and whether your verify command still passes. The harness
+  stays attached between turns, so it keeps its own context too. Pick Bodega to switch back; the thread stays one
+  transcript. Before this, an external agent got only your last message and was restarted every turn.
+  Sub-agents can run on a harness too: the main agent, on any model, can spawn a child on Claude Code and
+  Bodega merges its work back like any delegated task.
+- **Harnesses are found on your login shell's PATH.** A Bodega launched from the Dock or a launcher used to
+  see only the bare system PATH, so an adapter installed by npm under nvm, Volta or Homebrew showed as
+  "not installed". Bodega now asks your own shell for its PATH once and looks harnesses up (and starts
+  them) on that.
+- **Export your skills as a plugin.** Settings → Plugins → **Export…** bundles the skills you wrote or imported,
+  plus your MCP server declarations, into a standard Agent Plugins folder that Cursor, Copilot or another
+  Bodega can install. Keys, tokens and sign-ins are never included, only the declaration.
+- **Updating a plugin shows you what changes.** Importing a plugin you already have now lists every skill and
+  MCP server as new, changed, removed or unchanged, and lets you keep any changed or removed item as it is.
+  Files that did not change are left alone, and if the plugin folder changes between preview and install,
+  Bodega asks you to look again instead of installing something you did not see.
+- **Sign in to remote MCP servers with OAuth.** Hosted MCP servers that use OAuth (the GitHub, Linear,
+  Notion and Sentry kind) can now be added: set the server's auth mode to *Sign in with OAuth*, click
+  **Sign in**, finish in your browser, and Bodega keeps the tokens encrypted and refreshes them itself.
+  If a server ever asks for a new sign-in, the row says so instead of silently retrying. Off under air-gap.
+- **Bodega is now an MCP server too.** With the API Server on, point Claude Code, Cursor, Codex or any MCP client at
+  `http://localhost:1337/mcp` and they can search and save your Bodega memories, search your knowledge base and
+  the built-in docs, and ask the Bodega Map about a project. Only those five tools are exposed, never shell or
+  file access, and nothing leaves your machine. Settings → API Server shows the exact `claude mcp add` command.
+
+### Added
+
+- **The agent can ask you a question without stopping.** A new `ask_user` tool lets the agent post a
+  question mid-task — a naming choice, which of two approaches, whether to touch a file — and keep
+  working on everything that doesn't depend on the answer. The question appears as a card above the
+  composer; answer it whenever you like and the answer is folded into the running task. If the task
+  finishes first, your answer is sent as your next message instead. The Code CLI shows the same card
+  beside its prompt. The pre-task interview for vague requests is unchanged: that one still waits.
+- **The trace panel now shows which tool-call format a local model used and whether a malformed call
+  got auto-repaired.** When a local model emits tool calls as plain text (instead of native function
+  calling), the debug trace now records which wrapper style it used and, if the JSON needed fixing up,
+  which repair recovered it — useful for spotting a model that keeps inventing its own tool-call syntax.
+- **Unsloth Desktop (local) provider preset.** Connect Bodega to a locally running Unsloth Desktop
+  server as an ordinary OpenAI-compatible provider. Its default port isn't documented consistently, so
+  a "Probe port" action checks both candidates and fills in the base URL automatically instead of
+  guessing. Models and fine-tunes you train in Unsloth Desktop stay on your own machine — Bodega only
+  connects to it, never installs or manages it.
+- **Use GGUF models you already downloaded, from the Hugging Face cache.** If another tool (Unsloth
+  Desktop, `huggingface-cli`, etc.) already put a GGUF in the standard Hugging Face hub cache, it now
+  shows up in the llama.cpp models view labelled "Found in your Hugging Face cache," with a one-click
+  way to use it — no re-download, and the file is never moved or copied.
+- **NVIDIA Nemotron 3.5 Lightning added to the local model catalog.** A new hybrid model (30B
+  parameters, 3B active) with a 1-million-token context window, available in two download sizes.
+  Also added to the Ollama catalog.
+- **A second Devstral checkpoint.** Mistral's newer Devstral Small (2512) is now available
+  alongside the existing 2507 build, with a bigger 256K context window.
+- **One recommended model instead of a full list.** First-run local model setup now shows a single
+  "Install and start chatting" card with the reason it was picked; the full list is still there behind
+  a "Choose a different model" link if you want to browse. Before the download starts, the screen also
+  names the actual runtime it will install and its real size (for example "RTX 5090 · CUDA 13 build ·
+  513 MB") instead of a rough size range.
+- **Ollama's first download shows real progress.** The first-run screen now shows how many gigabytes
+  have downloaded out of the total, plus a live speed in bytes per second, instead of an unlabeled
+  spinner.
+- **A one-time "how fast is your machine" reading.** After your first local model finishes installing,
+  Bodega sends it one short prompt and shows you the measured tokens-per-second, so the first number
+  you see is your own hardware, not a marketing figure.
+- **Bodega remembers your window size and position.** Resize or move the window and it reopens the
+  same way next time, instead of always starting at the default size.
+- **Taskbar and dock activity.** While a chat is streaming, a background/parallel session is running,
+  or a sub-agent is working, the taskbar (Windows) or dock (Mac) icon shows progress. If something
+  finishes while the window isn't focused, the icon badges and flashes once.
+- **New keyboard shortcuts actually work now.** `Ctrl+J` focuses the chat/agent composer. Arrow keys,
+  Home, and End now move you through the session list and the model picker instead of requiring Tab.
+- **A plain-language note when your GPU can't fit a model's full context window.** Bodega already
+  lowered the context size in that case; now it tells you, with the number and your GPU size, instead
+  of silently truncating.
+- **Sub-agent tool calls now show how long each one took**, in the drill-in panel next to the call
+  itself.
+- **Qwen3.8 on hosted providers.** Qwen3.8 Flash and 27B are in the picker for QwenCloud (DashScope),
+  OpenRouter, Together, DeepInfra, Novita and Groq, at the rates each provider prints. The local Flash-Next
+  GGUF stays out of the catalog for now: its smallest file is 68 GB and runtime support for it is still
+  settling.
+
+### Changed
+
+- **A tool name the agent gets wrong is no longer silently ignored.** If the model calls a tool by a
+  name Bodega doesn't recognize, it now gets told so and can try again, instead of the call vanishing
+  with no explanation.
+- **A tool call the agent was only describing as an example is no longer run.** If a response merely
+  shows what a tool call "would look like," Bodega no longer executes it as if it were a real request.
+- **The background-session concurrency limit only counts sessions that are actually running.** A
+  finished-but-unapplied card no longer eats one of your background slots.
+- **A quick disconnect no longer flags a chat as a background session.** Reconnecting within a few
+  seconds of a dropped connection, or a disconnect in the very first moments of a reply, no longer
+  marks that conversation as backgrounded.
+- **llama.cpp runtime updated to 0.4.0 (build b10819)** on all eleven platform builds, with every checksum
+  regenerated from the release itself.
+
+### Fixed
+
+- **An edit that gets undone in the same turn no longer scores as verified.** If the agent edits a
+  file and then reverts it back to its original content, that is now correctly reported as unverified
+  rather than a pass — Bodega checks what actually changed, not just that a write succeeded.
+- **A code task with no compiler or test check at all no longer scores as a pass.** Running nothing
+  used to count as a clean bill of health; now it's honestly reported as unverified.
+- **A corrupted memory database now recovers cleanly on the first try.** If Bodega has to restore your
+  saved-facts database from an internal backup, it now removes duplicate entries before restoring, so
+  a backup with duplicates doesn't fail to load every time you open the app afterward.
+- **In-app updates on macOS find the right download for your Mac.** Each release published an update
+  manifest that listed only one of the two Mac builds, whichever finished last, so the updater on the
+  other architecture found nothing. The two manifests are now merged before a release goes live, and
+  the beta.41 manifest was repaired in place.
+- **Local models with strict chat templates no longer reject multi-tool turns.** Llama 3.1 refused a turn
+  with two tool calls in one assistant message; Mistral and Devstral refused one where a user message
+  followed a tool result, or where two user turns sat back to back. Bodega now reshapes the conversation
+  for those templates before sending it. Nothing changes for cloud providers.
+- **"Use the file_system tool to…" now runs the tool.** A message that named a tool explicitly used to be
+  answered as plain chat. `use`, `call` or `invoke the X tool` is treated as a command.
+- **Local models that write tool calls as text get their calls through.** A tool call in a JSON code block
+  was stripped from the reply before Bodega read it; a call written with a `tool_name` key was read as no
+  call at all; and a call to a tool that doesn't exist was dropped silently instead of the model being told.
+  Now the call runs, or the model hears why it didn't.
+- **Four cloud rates corrected.** Fireworks' and Together's DeepSeek V4 Pro and Flash prices had moved
+  (mostly upward on output); cost estimates now match the cards those providers print.
+- **GPT-5 and GPT-6 models now run on OpenAI's Responses API, with tools and reasoning together.** OpenAI's
+  chat endpoint rejects function tools alongside a reasoning level for every GPT-5 model (the 5.6 family
+  even when no level is sent), so agent turns on those models were failing before the first token. Bodega
+  now speaks `/v1/responses` for GPT-5 and GPT-6 on OpenAI directly: tools work, the reasoning level you
+  chose applies, and the model's reasoning summary streams into the thinking pane. Nothing is stored on
+  OpenAI's side (`store: false`). GPT-5 models reached through a gateway keep the chat endpoint and send
+  no reasoning level when tools are on, which is the only shape those gateways accept.
+- **GLM-5.3-Flash shows its list price.** Its 50% launch promo ended on September 9; billing switched
+  over on schedule, and the model picker's price badge and the catalog now say the same $0.15/$0.50.
+
 ## [1.0.0-beta.41] - 2026-09-03
 
 Sub-agents. The agent can hand a focused task to another agent that runs on its own provider and
