@@ -7,7 +7,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.0.0-beta.42] - 2026-09-11
+## [1.0.0-beta.42.1] - 2026-09-11
 - **Run a chat on Claude Code, Codex, Gemini CLI or Cursor, inside Bodega.** A new harness control in the
   composer lists the coding agents installed on your machine. Pick one and the next turns run there, with your
   project rules, memory and conversation handed over, its edits going through Bodega's approvals, and a review
@@ -106,6 +106,10 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   regenerated from the release itself.
 
 ### Fixed
+
+- **Shipped as beta.42.1.** beta.42 itself was never published: GitHub's new macOS runner image broke
+  the packaging tool's own signing keychain, so the Mac builds failed. The release pipeline now prepares
+  the signing keychain itself. Everything below is the beta.42 set.
 
 - **An edit that gets undone in the same turn no longer scores as verified.** If the agent edits a
   file and then reverts it back to its original content, that is now correctly reported as unverified
