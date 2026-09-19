@@ -7,6 +7,40 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.42.2] - 2026-09-19
+
+### Added
+- **Provider accounts in Settings → Spending.** Bodega now shows what each provider reports about your
+  account: credit left on OpenRouter, DeepSeek and Kimi, OpenCode Go's rolling, weekly and monthly quota with
+  reset times, and Featherless request slots. A balance under $2 is flagged. Providers that do not report a
+  balance to a normal API key (OpenAI, Anthropic, Fireworks, Concentrate, OpenCode Zen) are listed with the
+  reason instead of a blank. Nothing is requested in air-gap mode.
+
+### Fixed
+- **A provider refusing a request is no longer reported as a bad API key.** When a provider accepts your
+  key but will not serve the request (a model outside your plan, a region block, a free tier limited to
+  the provider's own app), Bodega used to say "Your API key is invalid or missing". It now says the
+  provider refused the request, and only a rejected key is called a rejected key.
+- **Every provider error now includes what the provider actually said.** The provider's own message is
+  shown under Bodega's explanation, with anything that looks like a key removed, so you can see exactly why
+  a request failed instead of guessing from a category.
+- **Featherless plan-gated models** get their own message pointing at plan tiers, instead of sharing the
+  invalid-key one.
+- **An OpenCode key is now actually checked.** OpenCode's model list answers any key, valid or not, so
+  Settings showed "Connected" for a key the gateway had never accepted - which is what the reporting user
+  saw beside every request failing. Saving a key now makes a one-token request instead, and a key that is
+  merely restricted from one model still counts as valid.
+- **Most OpenCode models now work.** OpenCode serves its models over four different APIs behind one
+  address, and Bodega only spoke one of them, so GPT, Grok, Muse Spark and Claude models (and MiniMax M2 on
+  OpenCode Go) failed with "Something went wrong". Each model now goes to the API it answers on. Gemini
+  models on OpenCode use an API Bodega does not support yet; picking one says so instead of failing.
+- **A model on a custom endpoint is no longer sent to another provider.** With a custom endpoint active,
+  picking a model whose name matched another provider (for example a `gpt-` model) could send the request,
+  and the custom endpoint's key, to that provider instead. The endpoint you chose now handles it.
+- **OpenCode (Zen and Go) endpoints are recognised as a cloud provider.** They were treated as a local
+  server, which gave them a short connection window. Bodega also names each conversation to OpenCode with
+  the session header it asks clients to send, so its routing and prompt caching work as intended.
+
 ## [1.0.0-beta.42.1] - 2026-09-11
 - **Run a chat on Claude Code, Codex, Gemini CLI or Cursor, inside Bodega.** A new harness control in the
   composer lists the coding agents installed on your machine. Pick one and the next turns run there, with your
