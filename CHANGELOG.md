@@ -7,6 +7,110 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.43] - 2026-09-23
+
+### Security
+- Adding a web page to your knowledge base no longer follows a redirect to a private or local address.
+- The app window can no longer widen which folders the app may read and write. You approve each project
+  folder once, the first time you reopen it after updating.
+- **Fixed a hole where a crafted search pattern could make the project search tools run a program on your
+  machine without asking.** A search pattern that looked like a command-line option was passed to the search
+  engine as an option. Patterns are now always treated as plain text.
+- Project search no longer follows a symbolic link to folders outside your project.
+- Web fetch no longer lets an address like `[::]` reach services running on your own machine, and no longer
+  wrongly refuses real sites such as fda.gov and fcc.gov.
+- Command output now hides DeepSeek and other `sk-` API keys, Hugging Face tokens, and secrets printed from
+  `.env` files (for example `SERVICE_API_KEY=...`).
+- Turning on air-gap in one window now reaches the app's other windows and background processes within a
+  fraction of a second, without a restart.
+- An untrusted project's settings file is no longer shown through the project-settings view until you trust
+  the workspace, and saving project settings no longer deletes the project's hooks.
+
+### Fixed
+- **Code Mode checkpoints now work.** Bodega saves each file before the agent changes it, so Rollback can
+  restore it. The checkpoint list was always empty before.
+- **The Session Token Budget now actually stops a session** when it is reached. It is off by default (0 = no
+  limit); before, the setting showed a limit but never enforced it.
+- Error messages are clearer: a spend-cap stop shows the full reason with **Raise limit** and **Use local
+  model** instead of a Retry that could not work, errors name the provider you are using, the Pull button only
+  appears for Ollama, and a brief network blip while testing an API key no longer says the key is invalid.
+- Cloud API Keys and first-run setup now list all 23 cloud providers, and testing a key works for every one of
+  them. Model tips no longer suggest retired models.
+- Settings search finds every section, including Keybindings, Plugins and GitHub.
+- `/clear` now clears the conversation view (the agent keeps its context) and `/new` starts a fresh chat.
+- Turning off skill auto-activation in Settings now takes effect.
+- The help pages were corrected throughout: wrong Settings paths, removed options, outdated counts and
+  descriptions.
+- **Stop now stops a command that is already running,** including its child processes, instead of letting
+  it finish in the background.
+- A long-running tool is now actually stopped when it times out, and MCP timeouts longer than two minutes now
+  take effect.
+- Quitting Bodega no longer leaves the backend or the local model server running and holding GPU memory.
+- Bodega no longer closes another program that happens to use port 3000 when it starts.
+- **Edit checks now grade short fix requests** like "Fix reverse.go." or "...returns the wrong value. Fix it.",
+  which were left unchecked before.
+- When you say not to edit a file, the edit check now fails if the agent edits it anyway, and the agent is no
+  longer told to change that file.
+- A correct fix is no longer marked failed because your request said "do not change" some other file.
+- Fix requests that mention "describe" or "explain" partway through, like "The tests describe the expected
+  behaviour. Fix it.", are now checked as fixes instead of being treated as questions.
+- **Stop now works while the agent is running your tests,** and Bodega stays responsive during long test runs.
+- **Editing TypeScript and JavaScript is faster.** After an edit that leaves a file error-free, the agent no
+  longer waits about 10 seconds for type-check results before moving on.
+- **Approvals and questions survive switching chats.** Tool approvals, plan approvals and questions the
+  assistant is waiting on now stay on screen after you switch chats or reload the app, and you can still
+  answer them. A request waiting for your approval is never decided by itself after a disconnect.
+- **Pressing Stop no longer marks your model as unreliable,** so your next message goes to the model you
+  chose instead of quietly switching to a fallback. A model is only treated as unhealthy after several real
+  failures.
+- Stop now works right away while Bodega is waiting out a rate limit, and also cancels a helper agent's
+  local model while it is still loading.
+- When a provider asks you to wait before retrying, Bodega now waits instead of retrying immediately.
+- Thinking text no longer appears twice after a brief connection hiccup.
+- Cost, progress and model-switch updates keep working when you come back to a chat that was running in the
+  background.
+- Fixes made with small search-and-replace edits now get the same automatic build and test check as fixes
+  that rewrite a whole file.
+- Python, Go, Rust and Makefile projects now have their own test command found and used to check edits and
+  bug fixes. A test command you set in the project is tried first. A Python edit that breaks a test file's
+  import no longer counts as passing.
+- The shell safety filter no longer blocks ordinary commands like searching a `src` folder for a word,
+  checksumming a download, pretty-printing JSON or formatting `git log`. Dangerous commands are still blocked.
+- Passing checks during a task now count as progress, so the agent is less likely to be nudged or stopped
+  while it is getting somewhere.
+- Deleting a chat now frees the memory Bodega was holding for it.
+- The help pages now say accurately which project settings file entries take effect today.
+- The greeting and the browser tab loading bar now use solid brand colours.
+- **Qwen 3.7 Flash spend now uses its long-prompt price,** so cost tracking no longer under-counts large
+  requests. Claude Opus 5.5 is now billed at its own price instead of the older Opus 5 price, and prices are
+  matched more precisely, so a newer model no longer picks up a cheaper sibling's price.
+
+### Added
+- Switches for what Bodega learns from your chats: remembering facts, self-learning, reflection and saving new
+  skills, under **Settings → Session Memory**.
+- A keep-alive setting on the Ollama card, for how long a model stays loaded after use.
+- Exporting a chat warns you first if it contains what looks like a password or API key.
+- Import a Loop from a file in **Settings → Loops**.
+- The agent can now write script files (`.sh`, `.bat`, `.cmd`, `.ps1`), but only after you approve each one.
+- **A smarter map of your project.** Bodega now parses your code to learn what each file defines and how files
+  depend on each other, ranks them by importance and by what changed recently in git, and points the agent at
+  the file that defines whatever you name. On large projects the agent finishes the same work about 15% faster
+  with about 20% less context. Works for 12 languages, including TypeScript, JavaScript, Python, Go and Rust.
+- **Bodega now reads `AGENTS.md`,** along with `.bodega-rules` and `CLAUDE.md`, and uses every one that
+  exists. An `AGENTS.md` in a subfolder applies when the agent works on files in that folder. This works the
+  same in the app and in Bodega One Code.
+- **Use your own coding agent without its ACP adapter.** Bodega runs the agent's built-in headless mode
+  instead. A setup guide in Settings shows which coding agents are installed and how to sign in to each in
+  your own terminal. Bodega says plainly that your agent uses its own sign-in and bills your own plan, and it
+  never reads, stores or passes on that sign-in.
+- **Share Bodega's context with your coding agent** (opt-in, off by default): memory, knowledge base, docs
+  and the project map. It never exposes shell or file tools and respects air-gap mode.
+- Sub-agents can run on your installed coding agent. Without its approval adapter, such a sub-agent cannot
+  run shell commands unless you turn on "Sub-agents may use the shell".
+- New cloud models: Claude Opus 5.5, GPT-6 Astra, GPT-6 Sol, GPT-6 Luna, DeepSeek Flash, Kimi K3, Grok 4.7,
+  Gemini 3.8 Flash and GLM-5.3 FlashX. Retired DeepSeek V4 Flash ids have been replaced. New local models: Qwen 3.8 27B and
+  Granite 4.2 8B and 30B.
+
 ## [1.0.0-beta.42.2] - 2026-09-19
 
 ### Added
