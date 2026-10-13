@@ -7,6 +7,15 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.45.1] - 2026-10-12
+
+### Fixed
+- **Chat no longer shows raw tool-call text instead of an answer.** Some questions ("explain how air-gap mode protects my data, with a table and a code example") could show a fragment of code markup in place of the reply. Those questions are now told no tools are available and answer directly, and tool-call markup is never shown. An answer that talks about that markup, in a code block or in backticks, is shown in full.
+- **Writing requests are no longer treated as commands.** Asking for a checklist, agenda or similar document that mentions an app (for example "a launch checklist for a team shipping a desktop app") no longer shows "command detected" or a Quick Questions panel.
+- **The "Waiting for your OK" indicator no longer gets stuck.** When a desktop control request ends, times out or is declined, the pill at the top of your screen now clears. The "Always allow these apps?" offer no longer holds up the run while it waits for you.
+
+---
+
 ## [1.0.0-beta.45] - 2026-10-12
 
 **Bodega can now use other Windows apps for you, and the app feels calmer to read and use.**
@@ -44,7 +53,6 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **The installer no longer opens the app by itself.** Only the "Launch Bodega One" button starts it.
 - **"Restart to update" starts Bodega One again.** The app used to close and stay closed.
 - **Desktop control approval cards now appear.** A hands-on run could wait forever because the card never showed. Every desktop step now ends within about 25 seconds with an error naming what failed, and a request can no longer hang on a slow settings check.
-- **Desktop control pauses less easily and never silently.** A tap or small nudge no longer pauses it, a Resume button appears at once, and your input is ignored for 1.5 seconds after you resume.
 - **A skill can no longer hide Desktop control** from a request that matched it.
 - **The Chat mode model picker and the close button on dialogs work again.**
 - **The Guided Tour checkmarks are centred,** and "Check for updates" is a plain button.
