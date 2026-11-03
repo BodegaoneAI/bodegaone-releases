@@ -7,6 +7,116 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.49] - 2026-11-03
+
+### Fixed
+
+- **A shell command that times out no longer hangs the agent.** If the command
+  started something that keeps running, such as a dev server, the timeout now
+  stops the whole process tree and returns the output so far.
+- **Bodega checks bug fixes more honestly.** A pasted GitHub issue is treated as
+  a bug to fix, not a request to create the files its steps mention. The
+  project's existing tests for the edited Python files now run, but passing them
+  only shows nothing broke, so it no longer marks a fix as verified on its own.
+  Fewer correct fixes are reported as failed.
+- **The commit skill no longer turns on by itself for bug reports.** A version
+  dump that printed "commit: None" was enough to switch it on. It now needs an
+  actual request to commit.
+- **Mistral Large 4 is billed at its new price.** Mistral cut Large 4 to
+  $0.70 in / $2.10 out per million tokens, and Bodega was still charging the old
+  $1.36 / $4.18, about twice the real cost. `gpt-6.1-terra` now has its own
+  price ($1 / $5) instead of the $5 / $25 fallback.
+- **Anthropic sessions reuse more of the cache.** The fixed part of the system
+  prompt is now cached on its own, so a new session in a different project
+  reads it from cache instead of writing it again. In a 20-task test, cache
+  writes fell 21% and cost fell 9%.
+- **A bug-fix request no longer turns on a read-only skill.** A bug report's
+  wording could match a read-only skill such as onboarding, which forbids shell,
+  and the agent stopped without reproducing or fixing anything. Read-only skills
+  no longer turn on by themselves for fix requests. `/onboard`, `/explain` and
+  `/docs` still work when you type them.
+- **Issues with a "System Details" heading are no longer refused.** The
+  prompt-injection check matched any heading that started with "System", so a
+  pasted GitHub issue using a common template was blocked before the model saw
+  it. It now matches only a real role header.
+- **One common word no longer turns on a skill by itself.** Skill matching
+  counted a word once for every time it appeared in the skill's description, so
+  a single word such as "project" could start the onboarding skill on a bug
+  report. Matching now counts distinct words.
+- **The dependency-pins reminder appears once per run.** It was meant to show
+  once but repeated after every file write.
+- **The in-app help is written for users.** It no longer contains internal file
+  names, engineering notes or people's names, and the air-gap page shows
+  `\\server\share` correctly. The agent answers help questions from these pages.
+- **Memories you add by hand survive a restart.** They were deleted on the next
+  launch as corrupt.
+- **Chat:** a cut-off reply no longer leaves a duplicate message, and Retry
+  retries the right one. While a run waits for your approval the status bar says
+  so. A finished tool is no longer named as the current step, a reply that was
+  only a tool call no longer shows as a blank message, and the run timer no
+  longer resets when you switch views.
+- **Code mode:** with no project open only the Runs panel shows, and Explorer
+  and Outline come back when you open one. Refreshing the file tree keeps open
+  folders open and filled in. Opening a folder that was moved or deleted says so.
+  Dragging a file updates its open tabs, renaming an untitled file never
+  overwrites an existing one, and an inline AI fix only applies to its own file.
+- **Review and rollback:** hunk review no longer offers a "delete everything"
+  diff when a file cannot be read, checkpoint rollback reports what it really
+  restored and removes files the run created, and Replace All no longer lists
+  failed files as replaced.
+- **Fleet:** the Approve button approves, and the diff view no longer says "no
+  changes" while Apply is enabled.
+- **Settings:** the Verification page is in plain language, the per-project
+  "overrides" badge shows only where a project setting really applies, toggles
+  that fail to save say so, text fields no longer drop characters, confirming
+  "Turn off guardrails" saves it, and long help tooltips wrap.
+- **Spending and budgets:** a retention of 0 keeps history instead of wiping it,
+  Boost budgets count spend from before a restart and include cached tokens, and
+  daily usage groups by the right day.
+- **The composer's agent chip no longer flashes**, and can be clicked, when it is
+  the only chip in the row.
+- **Shell output counts as a source.** Citing a file that `git status` printed
+  no longer adds "not verified" and Check Sources to the reply.
+- **Restart to update shuts the app down cleanly first.** Opening the app while
+  an update is installing recovers instead of showing a dead window.
+- **Anthropic:** an error in the middle of a stream fails the turn with its
+  reason instead of ending as an empty success, and malformed tool-call history
+  no longer breaks every later turn.
+- **Tools report honestly:** `grep` says when it truncated, `run_tests` counts
+  tests rather than files, `glob` matches `dir/**/*.ext` directly inside `dir`,
+  and a shell timeout of 0 no longer kills the command at once.
+
+### Security
+
+- A read-only first word no longer auto-approves a wrapped or redirected write
+  (`env rm`, `find -delete`, `echo >`), and the shell's working-directory check
+  follows symlinks.
+- File listing and search-in-files stay inside the folders you opened.
+- Under air-gap, the Usage panel never contacts a cloud host, every spelling of
+  localhost counts as local, and embedding and vision refusals are logged.
+- Bodega Remote checks the owner before using a pairing code, fully forgets a
+  revoked chat, and matches approvals to the right platform.
+- Port kill only stops servers Bodega started.
+- IPv6 private-address blocking no longer blocks real sites such as fdic.gov.
+- Session tools are scoped to the current user, and the local API validates
+  chat-completion, session and project input and caps voice uploads.
+
+### Changed
+
+- **CLI:** `bodega run --parallel --wait` exits **124** on timeout instead of 3.
+- The session token cap lasts the whole session instead of resetting after a few
+  idle minutes, and the hardware tier is based on total VRAM.
+- The provider fallback is a setting, on by default. Loop runs can be cancelled.
+  Old telemetry and run history expire, and pollers pause while the window is
+  hidden.
+
+### Removed
+
+- The crash reporter, which had no Sentry project and was on by default although
+  it was described as opt-in. Also unused routing modules, the per-IP rate
+  limiter, LLMObserver and its setting, an unused logs endpoint, and old bench
+  scripts.
+
 ## [1.0.0-beta.48] - 2026-10-28
 
 ### Fixed
@@ -4717,7 +4827,7 @@ the existing QEL verification callback (`onQelTrace`), so they extend the
 ## [1.0.0-beta.31.2] - 2026-06-23
 
 The post-beta.31.1 marathon — a hands-off quality-of-life and provider-audit
-campaign (a 172-finding audit worked high-to-low), the bugs Joe surfaced from live
+campaign (a 172-finding audit worked high-to-low), the bugs surfaced from live
 diagnostics, and the preview / dev-server follow-ups.
 
 ### Fixed
@@ -4767,7 +4877,7 @@ diagnostics, and the preview / dev-server follow-ups.
 - **Anthropic**: broadened context-overflow detection for newer/1M-context errors;
   `complete()` connect-timeout + per-model `max_tokens` + a free (`count_tokens`)
   health check; extended-thinking blocks now round-trip so reasoning + tool-use no
-  longer 400s. (`AnthropicProvider.ts` split under the 700-line cap to land these.)
+  longer 400s.
 - **Ollama**: tool-result linkage (preserved `tool_call_id` + derived `tool_name`),
   faster health recovery (3s fail-cache), broken-tool-template poison handling in `complete()`.
 - **OpenRouter** one-sided pricing no longer drops the model; **Claude display names**
@@ -4781,7 +4891,7 @@ diagnostics, and the preview / dev-server follow-ups.
   invisible and a stale port showed. Both the terminal-output detector and the backend
   port scan now cover the Vite dev/preview increment band.
 - **Preview opened the external browser instead of the in-app panel, and "open
-  preview" could hang the model.** Two fixes (Joe 2026-06-23): (1) dev servers run
+  preview" could hang the model.** Two fixes: (1) dev servers run
   with `BROWSER=none`, so a Vite/CRA `server.open: true` no longer pops the system
   browser — Bodega's in-app Preview owns it. (2) A foreground dev-server command
   (`npm run dev`, `vite`, `next dev`, …) is now auto-detected and run in the
@@ -5752,7 +5862,7 @@ Local vision arrives. Run a text model and a vision model side by side on llama.
 
 ## [v1.0.0-beta.23] - 2026-05-25
 
-Twelve-day §D cycle around the Dockview layout migration, two-model VLM orchestration, and a polish pass driven by Joe's live-smoke + four-agent review (Reviewer / Sentinel / QA / Doc Guardian). **73 new tests** across the dockview suite, **~50 commits since beta.21**. Tag headline: *panels you can move, vision that just works, dropdowns that no longer hide behind the editor.*
+Twelve-day §D cycle around the Dockview layout migration, two-model VLM orchestration, and a polish pass driven by live testing + four-agent review (Reviewer / Sentinel / QA / Doc Guardian). **73 new tests** across the dockview suite, **~50 commits since beta.21**. Tag headline: *panels you can move, vision that just works, dropdowns that no longer hide behind the editor.*
 
 The beta.22 work was developed in-tree but never tagged. Beta.23 ships as the consolidated release.
 
@@ -5779,7 +5889,7 @@ Layout reset goes through `requestLayoutReset()` which atomically clears the per
 
 Theme: `dockview-theme-bodega.css` overrides 18 `--dv-*` variables onto Bodega's `--color-noizey` / `--color-surface` / `--color-text-*` tokens so the abyss palette doesn't bleed through to obsidian-wave-light + bodega-light themes.
 
-`source-of-truth/beta.22-smoke-matrix.md` (NEW, 9 sections, ~50 ticks) is Joe's manual checklist for the tag: covers migration dialog flows on all 4 themes, default tree, persistence + corruption recovery, terminal 3-slot reparenting, preview webview survival, agent state, fleet, regression, crash/recovery, small-viewport (1280×720).
+`source-of-truth/beta.22-smoke-matrix.md` (NEW, 9 sections, ~50 ticks) is the manual checklist for the tag: covers migration dialog flows on all 4 themes, default tree, persistence + corruption recovery, terminal 3-slot reparenting, preview webview survival, agent state, fleet, regression, crash/recovery, small-viewport (1280×720).
 
 ### Added: Two-model VLM orchestration (Days 3-5)
 
@@ -5831,14 +5941,14 @@ Text-model driver + vision sub-tool architecture lets any text model use vision 
 
 ### Snap-to-close: DEFERRED to beta.24+
 
-`useDockviewSnapToClose.ts` works under computer-use mouse events but doesn't fire reliably on Joe's actual Windows + touchscreen setup despite 11 rounds of fixes (capture phase, `elementsFromPoint` walk, 80px zone, visible "Drop here to close" indicator, `dndStrategy='html5'` force, `lastDragoverY` fallback). The hook file is preserved on disk for revival once the pointer/HTML5 backend mismatch on coarse-pointer-reporting devices is properly diagnosed. Call site is commented out in `DockviewLayout.tsx`.
+`useDockviewSnapToClose.ts` works under computer-use mouse events but doesn't fire reliably on a real Windows + touchscreen setup despite 11 rounds of fixes (capture phase, `elementsFromPoint` walk, 80px zone, visible "Drop here to close" indicator, `dndStrategy='html5'` force, `lastDragoverY` fallback). The hook file is preserved on disk for revival once the pointer/HTML5 backend mismatch on coarse-pointer-reporting devices is properly diagnosed. Call site is commented out in `DockviewLayout.tsx`.
 
 ### Post-ship hardening: PR #451 (16 rounds of live-feedback fixes)
 
-A bugbash driven by Joe's sanity test before binary build surfaced sixteen tightly-scoped issues across drag-drop, split-view, and project-switch flows. Each round landed as a focused commit on `fix/beta23-dockview-default-panel-sizes`. Highlights:
+A bugbash driven by a sanity test before binary build surfaced sixteen tightly-scoped issues across drag-drop, split-view, and project-switch flows. Each round landed as a focused commit on `fix/beta23-dockview-default-panel-sizes`. Highlights:
 
 **5-zone drop overlay (rounds 1-2, 9-14).** The earlier drag-highlight was a single full-panel outline that didn't tell users where the drop would actually land. New overlay shows five labeled quadrants (`Split above` / `Split right` / `Split below` / `Split left` / `Add as tab`) with the active zone filled bright purple. Achieving 1:1 visual fidelity with Dockview's underlying drop math took:
-- Anchoring the overlay on `.dv-content-container` (not `.dv-groupview`) so the tab bar isn't part of the "top" zone (Joe round 11).
+- Anchoring the overlay on `.dv-content-container` (not `.dv-groupview`) so the tab bar isn't part of the "top" zone.
 - Matching Dockview's zone-priority order (`left → right → top → bottom → center`) for corner cursor positions (round 12).
 - Re-anchoring on `document.body` with `position: fixed` + screen-space rect, so the overlay shows over `renderer:'always'` panels whose content lives in a sibling `.dv-render-overlay` element (round 13).
 - Suppressing the overlay on the source group entirely. Dockview no-ops same-group drops, matching VS Code / JetBrains (round 11).
@@ -5875,7 +5985,7 @@ A bugbash driven by Joe's sanity test before binary build surfaced sixteen tight
 
 ## [v1.0.0-beta.21] - 2026-05-22
 
-Three-day cycle driven by **Cachev's beta.20 feedback** + Joe's live smoke. Two big features, eight tracks of layout polish, twelve smoke-fix commits, and 108 new tests. **39 commits** since beta.20. Tag headline: *the agent can see the preview now, local-first, no cloud round trip.*
+Three-day cycle driven by **beta tester feedback** + live testing. Two big features, eight tracks of layout polish, twelve smoke-fix commits, and 108 new tests. **39 commits** since beta.20. Tag headline: *the agent can see the preview now, local-first, no cloud round trip.*
 
 ### Added: PreviewInteractionTool (agent ↔ webview bridge)
 
@@ -5891,9 +6001,9 @@ Security: JSON.stringify selector interpolation is MANDATORY (Sentinel rev2 HIGH
 
 The agent screenshot loop now works against llama.cpp vision models, not just Ollama. Catalog v1.2.0 adds `mmproj` block to the entry schema (HF repo + filename + sizeGB) and ships two vision entries: `llava-1.6-mistral-7b` (Mistral 7B vision, 32k ctx, with mmproj-model-f16.gguf) and `moondream2` (1.8B small/fast vision, 2k ctx). Picking a vision entry in Discover kicks off paired download: primary GGUF via the existing resumable path, then the mmproj sibling via a simpler magic-byte-validated fetch. `llamacpp_models` schema gained `mmproj_path TEXT` (with idempotent ALTER TABLE for existing installs). `LlamaServerManager.buildSpawnOptions` reads the path off the registry row; `LlamaServerProcess` appends `--mmproj <path>` to the argv when set; `ModelProfileData` picks up `llava-1.6-mistral-7b` and `moondream2` as keys so the agent loop's vision-capability check (`profile.capabilities?.includes('vision')`) returns true for the llama.cpp catalog IDs.
 
-### Added: Layout Expansion (eight tracks, Cachev coexistence feedback)
+### Added: Layout Expansion (eight tracks, beta tester feedback)
 
-Reverses C3 D2 (Preview lived in bottom-panel; Cachev's review showed code + preview + terminal *all visible* is the actual demand). Track A: Preview moves to editor-area tab via central `openPreviewService.openPreview(url, opts)`: one action, four triggers (auto-toast, agent, slash-command, ports-panel), Layer 1 localhost validation, single-tab pattern (opening a new URL replaces the existing Preview tab). Track B: auto-open toast + notification dot when `usePreviewAutodetect` sees a localhost dev server in terminal stdout: toast offers "Open Preview" (10s), notification dot on the Preview tab when one is open and a new URL is detected. Track C: global panel-size persistence via `ui.panel_sizes` settings key (one set across all projects, matches VS Code): fileTreeWidth, agentChatWidth, chatSidebarWidth, chatPreviewWidth, terminalSplitRatio, terminalDockSide, explorerSplitRatio. Track D: per-workspace preview URL persistence via SHA-256-first-16-chars hash of project_path. Track E: `/preview <url>` slash command (bare `/preview` opens the port-preset empty state). Track F: close-X visual separation between Bodega toggles and native title-bar close: 1 px divider on Windows/Linux, widened after live smoke. Track G: `ChatStage.tsx` split (extracted `ChatStageInputArea`). Track H: `QuickStartChips` removed from chat mode (always was code-only).
+Reverses C3 D2 (Preview lived in bottom-panel; beta testing showed code + preview + terminal *all visible* is the actual demand). Track A: Preview moves to editor-area tab via central `openPreviewService.openPreview(url, opts)`: one action, four triggers (auto-toast, agent, slash-command, ports-panel), Layer 1 localhost validation, single-tab pattern (opening a new URL replaces the existing Preview tab). Track B: auto-open toast + notification dot when `usePreviewAutodetect` sees a localhost dev server in terminal stdout: toast offers "Open Preview" (10s), notification dot on the Preview tab when one is open and a new URL is detected. Track C: global panel-size persistence via `ui.panel_sizes` settings key (one set across all projects, matches VS Code): fileTreeWidth, agentChatWidth, chatSidebarWidth, chatPreviewWidth, terminalSplitRatio, terminalDockSide, explorerSplitRatio. Track D: per-workspace preview URL persistence via SHA-256-first-16-chars hash of project_path. Track E: `/preview <url>` slash command (bare `/preview` opens the port-preset empty state). Track F: close-X visual separation between Bodega toggles and native title-bar close: 1 px divider on Windows/Linux, widened after live smoke. Track G: `ChatStage.tsx` split (extracted `ChatStageInputArea`). Track H: `QuickStartChips` removed from chat mode (always was code-only).
 
 ### Added: Provider-runtime quick-install in Providers tab
 
@@ -5909,11 +6019,11 @@ Pickers retired the native `<datalist>` (flat alphabetical wall, scrolled the pa
 
 ActivityBar (left rail) gets a Preview action button below Fleet, separated from the panel-tab group by a 1 px divider so it doesn't read as a fifth tab. Highlights when the Preview editor tab is active. EditorWelcome (empty-editor state) adds "Open Preview" as a peer button to "New File" / "Open File…". `/preview` with no args opens the empty-state port picker (3000 / 5173 / 8080 / 4200) instead of the prior "Use /preview <url>" toast.
 
-Topbar polish: removed the secondary-panel close-X (it sat next to the native title-bar close-X and confused users, Cachev + Joe both flagged). Secondary panels (Settings / Usage / Help / Agents / Network) now get their own floating close-X in the top-right corner of the panel region, in both ChatLayout and EditorArea. Native close-X separation widened to 5 px gap + full-opacity border so the visual break reads at normal viewing distance.
+Topbar polish: removed the secondary-panel close-X (it sat next to the native title-bar close-X and confused users, testers flagged it). Secondary panels (Settings / Usage / Help / Agents / Network) now get their own floating close-X in the top-right corner of the panel region, in both ChatLayout and EditorArea. Native close-X separation widened to 5 px gap + full-opacity border so the visual break reads at normal viewing distance.
 
 ### Fixed: `Pull Any Model` silently lied "ready in My Models" for models Ollama rejected
 
-Joe smoke 2026-05-22. `parseNdjsonStream` only broke the loop on `status === 'success'`; when Ollama emitted `{"status":"error","error":"pull model manifest: file does not exist"}` (e.g., a typo'd model name), the parser swallowed it, the stream closed cleanly, and the route synthesized a success event for the SSE consumer. User saw "ready in My Models" for a model that never downloaded. Parser now throws on error events with the Ollama-provided message; the outer try/catch promotes it through to the SSE `.catch` which emits `status:'error'` → frontend's onError fires the "Failed to pull" toast with the real reason. Plus the recommended Ollama VLM tag corrected: `qwen2.5vl:7b` (no dash) instead of the bogus `qwen2.5-vl:7b` that 404'd on Ollama's registry.
+Found in live testing. `parseNdjsonStream` only broke the loop on `status === 'success'`; when Ollama emitted `{"status":"error","error":"pull model manifest: file does not exist"}` (e.g., a typo'd model name), the parser swallowed it, the stream closed cleanly, and the route synthesized a success event for the SSE consumer. User saw "ready in My Models" for a model that never downloaded. Parser now throws on error events with the Ollama-provided message; the outer try/catch promotes it through to the SSE `.catch` which emits `status:'error'` → frontend's onError fires the "Failed to pull" toast with the real reason. Plus the recommended Ollama VLM tag corrected: `qwen2.5vl:7b` (no dash) instead of the bogus `qwen2.5-vl:7b` that 404'd on Ollama's registry.
 
 ### Fixed: Pull progress lost on tab navigation + "already being downloaded" lockout
 
@@ -5921,15 +6031,15 @@ Mid-pull, navigating away from Discover unmounted the local state; coming back s
 
 ### Fixed: Preview tab "closed" when typing in chat input + pressing Enter
 
-Joe smoke 2026-05-22. Focus shifts off the webview during chat input + submit fire `ERR_ABORTED (-3)` on the in-flight navigation. Electron logs `'GUEST_VIEW_MANAGER_CALL': ERR_ABORTED (-3) loading 'http://localhost:5173/'` twice (once for click, once for Enter). The aborted webview goes blank; users read "blank" as "the tab closed." Before: `did-fail-load` with -3 silently set `onLoadingChange(false)` and gave up. Now: on -3, throttle-reload(50 ms) on the same src once per second. -102 (CONNECTION_REFUSED) still shows the error card; -3 self-heals silently.
+Found in live testing. Focus shifts off the webview during chat input + submit fire `ERR_ABORTED (-3)` on the in-flight navigation. Electron logs `'GUEST_VIEW_MANAGER_CALL': ERR_ABORTED (-3) loading 'http://localhost:5173/'` twice (once for click, once for Enter). The aborted webview goes blank; users read "blank" as "the tab closed." Before: `did-fail-load` with -3 silently set `onLoadingChange(false)` and gave up. Now: on -3, throttle-reload(50 ms) on the same src once per second. -102 (CONNECTION_REFUSED) still shows the error card; -3 self-heals silently.
 
 ### Fixed: Anthropic vision converter dropped raw base64 silently (the actual reason Sonnet 4.6 "read HTML instead")
 
-Joe smoke 2026-05-22 with Claude Sonnet 4.6: agent called `preview_interaction screenshot` + `navigate`, then fell back to `file_system.read('index.html')` instead of describing the page. Root cause was `AnthropicProvider.convertMessages`: it required a `data:image/...;base64,...` data URL and silently dropped images that arrived as raw base64. `PreviewBridgeReceiver.doScreenshot` emits raw base64 from `webview.capturePage().toPNG()`. Ollama strips the `data:` prefix if present, OpenAI wraps with `data:image/png;base64,` if missing. But Anthropic's regex `/^data:(image\/[^;]+);base64,(.+)$/` failed to match, the image block was never added to the user-message parts, and Claude saw only the text caption "Captured 1280×720 PNG of http://localhost:5173/". Without an image to describe, the model reasonably fell back to reading the HTML directly. Fix: Anthropic now defaults `media_type` to `image/png` when no `data:` prefix is present. All three provider converters share one contract. Four new vision unit tests cover the raw-base64, data-URL, empty-string, and mixed-format paths so this can't regress silently.
+Found in live testing with Claude Sonnet 4.6: agent called `preview_interaction screenshot` + `navigate`, then fell back to `file_system.read('index.html')` instead of describing the page. Root cause was `AnthropicProvider.convertMessages`: it required a `data:image/...;base64,...` data URL and silently dropped images that arrived as raw base64. `PreviewBridgeReceiver.doScreenshot` emits raw base64 from `webview.capturePage().toPNG()`. Ollama strips the `data:` prefix if present, OpenAI wraps with `data:image/png;base64,` if missing. But Anthropic's regex `/^data:(image\/[^;]+);base64,(.+)$/` failed to match, the image block was never added to the user-message parts, and Claude saw only the text caption "Captured 1280×720 PNG of http://localhost:5173/". Without an image to describe, the model reasonably fell back to reading the HTML directly. Fix: Anthropic now defaults `media_type` to `image/png` when no `data:` prefix is present. All three provider converters share one contract. Four new vision unit tests cover the raw-base64, data-URL, empty-string, and mixed-format paths so this can't regress silently.
 
 ### Fixed: Late-day smoke pass: four stacked bugs that were keeping vision broken
 
-Joe drove three live smoke runs after the initial tag prep; each one peeled back another layer. The full stack of fixes that landed before tag:
+We ran three live smoke runs after the initial tag prep; each one peeled back another layer. The full stack of fixes that landed before tag:
 
 1. **Preview tab kicked out on every chat send.** `applyActiveCodeSessionId` in `codeSessionSlice` wiped `editorTabs:[]` whenever the active code session changed, including the first send that creates a fresh session. PreviewWebview unmounted mid-send, `setWebviewRef(null)` fired, the agent's screenshot landed against a null ref returning `preview_not_open`, and Claude fell back to reading source files. Fix: preserve `type:'preview'` tabs across session changes (they're URL-scoped to the project, not session-scoped). File tabs still get cleared as before.
 2. **`display:none` on PreviewPanel suspended the webview's RenderFrame.** First attempt to keep PreviewPanel always-mounted used `display:none` for the inactive state. Electron 41 treats `display:none` on a `<webview>`'s container as a frame-suspension trigger; the next `capturePage()` crashed the renderer process, blanking the whole window and detaching DevTools. Fix: `visibility:hidden` + `pointer-events:none` + `zIndex:-1`. Keeps the WebContents alive without painting pixels.
@@ -5940,11 +6050,11 @@ Live-verified end-to-end via computer-use against the Demo_Pulse landing page wi
 
 ### Fixed: Editor Welcome dead-end + B-track smoke bugs
 
-Welcome screen Send button was decorative. Clicking the chip + arrow combo did nothing on first open (no project / no model). Now wires through `handleSubmit` so the user can land on the welcome screen, pick a chip, click send, and the new-session flow fires. Ctrl+Alt+N added as a global new-session shortcut (Ctrl+N reserved by Monaco). C/C++/Arduino syntax highlighting added to Monaco (qwen2.5-coder users with embedded projects were getting plaintext rendering of `.cpp` / `.h` / `.ino` files). NSIS installer finish-page text was black-on-black on Windows 11, re-themed. File Explorer search no longer crashes on deep trees. Sidebar search field no longer hides the close-X behind the input. `+` button added to the file tab bar for New File / Open File (Cachev observation: there was no obvious empty-state action). "Select Folder" button added for working-directory picker.
+Welcome screen Send button was decorative. Clicking the chip + arrow combo did nothing on first open (no project / no model). Now wires through `handleSubmit` so the user can land on the welcome screen, pick a chip, click send, and the new-session flow fires. Ctrl+Alt+N added as a global new-session shortcut (Ctrl+N reserved by Monaco). C/C++/Arduino syntax highlighting added to Monaco (qwen2.5-coder users with embedded projects were getting plaintext rendering of `.cpp` / `.h` / `.ino` files). NSIS installer finish-page text was black-on-black on Windows 11, re-themed. File Explorer search no longer crashes on deep trees. Sidebar search field no longer hides the close-X behind the input. `+` button added to the file tab bar for New File / Open File (tester observation: there was no obvious empty-state action). "Select Folder" button added for working-directory picker.
 
 ### Fixed: Demo_V2 dino-game polish (jump physics + game-over overlay)
 
-Jump velocity / gravity retuned from `JUMP_VEL=-11, GRAVITY=0.85` (apex ~70 px, airtime ~28 frames, felt floaty) to `JUMP_VEL=-9, GRAVITY=0.9` (apex ~45 px, airtime ~20 frames, Chrome-dino feel). Game-over overlay alpha bumped 0.7 → 0.92 + heavier `backdrop-filter` blur so the frozen game frame reads as a backdrop, not "is the game still running?" Joe-flagged 2026-05-22.
+Jump velocity / gravity retuned from `JUMP_VEL=-11, GRAVITY=0.85` (apex ~70 px, airtime ~28 frames, felt floaty) to `JUMP_VEL=-9, GRAVITY=0.9` (apex ~45 px, airtime ~20 frames, Chrome-dino feel). Game-over overlay alpha bumped 0.7 → 0.92 + heavier `backdrop-filter` blur so the frozen game frame reads as a backdrop, not "is the game still running?".
 
 ### Added: Demo_Pulse (fictional landing page for vision-model demos)
 
@@ -5981,7 +6091,7 @@ Sessions are now sticky to the provider they were started with. PRs #389–#400 
 
 ### Fixed: Fleet write isolation (security-grade, beta.20 day-2 regression)
 
-PRs #421 + #424 + #427 wired the worktree-path substitution into the chat-stream handler. PR #428 closed a regression that surfaced during the live driver smoke on 2026-05-19: when `BODEGA_USER_DATA_DIR` wasn't visible to the chat-stream process at request time, the resolver was falling through to `process.env.APPDATA` (a different directory on Windows), the synthesized base didn't match the stored `worktree_path`, validation correctly returned false, and the resolver classified this as "tampered" and **silently fell back to the request's projectPath: the live project tree**. Agent writes went to the live project; the worktree stayed clean. Reproduced live: `lib/constants.ts` showed `APP_AUTHOR = 'Joe'` uncommitted on master after a fleet session was supposed to write to its worktree.
+PRs #421 + #424 + #427 wired the worktree-path substitution into the chat-stream handler. PR #428 closed a regression that surfaced during the live driver smoke on 2026-05-19: when `BODEGA_USER_DATA_DIR` wasn't visible to the chat-stream process at request time, the resolver was falling through to `process.env.APPDATA` (a different directory on Windows), the synthesized base didn't match the stored `worktree_path`, validation correctly returned false, and the resolver classified this as "tampered" and **silently fell back to the request's projectPath: the live project tree**. Agent writes went to the live project; the worktree stayed clean. Reproduced live: `lib/constants.ts` showed a local `APP_AUTHOR` edit uncommitted on master after a fleet session was supposed to write to its worktree.
 
 The PR #427 unit tests passed but masked this code path because every test passed `userDataDirOverride`. Production never does. PR #428 drops the `APPDATA / XDG_DATA_HOME / HOME` fallback chain entirely (`backend-manager.ts:111` always sets `BODEGA_USER_DATA_DIR` in every Electron-spawned backend), changes the `tampered` and `lookup-failed` decisions to return `effectiveProjectPath: undefined` for fleet sessions (no silent fallback), adds a hard-abort in `chat-stream.ts` that emits an SSE error frame and ends the connection on those decisions, and adds a new integration test suite that exercises the production env-var path (no override), including the regression mode where `BODEGA_USER_DATA_DIR` mismatches between provision and request time.
 
@@ -6023,7 +6133,7 @@ C1–C5 sweep: each cloud BYOK provider gets its own labeled key field instead o
 
 `git.auto_commit_ai_changes` defaults to ON. Every agent file_system write completes, and on success Bodega stages + commits with author `Bodega AI <ai@bodega.one>` and a generated message describing the change. Trailers include `Auto-committed by Bodega One. Disable via Settings → Git.` This gives every session a clean audit trail of exactly what the agent wrote. Fire-and-forget (no awaiting the commit before completing the SSE) so chat completion latency is unaffected.
 
-### Fixed: Onboarding stranded state detection (Joe smoke 2026-05-08 carry-forward)
+### Fixed: Onboarding stranded state detection (live testing carry-forward)
 
 [#418 carry-over and #427 hardening] If `general.has_completed_onboarding = true` but the user has no default model AND no API key for the active preset, FirstRunFlow re-mounts automatically. The check now reads per-provider keys (`llm.<presetId>_api_key`) instead of only `llm.openai_api_key`: the original Phase 2F bug that re-triggered FirstRunFlow on every launch even for properly-configured users with non-OpenAI presets.
 
@@ -6035,17 +6145,17 @@ Backend **4,775** passing / 54 skipped / 15 todo (+4 new chat-stream-worktree en
 
 ## [v1.0.0-beta.19] - 2026-05-13
 
-Eight PRs covering three Cachev-driven fixes (beta tester Cachev surfaced four real issues on 2026-05-12; PR #345 handled one yesterday, three more land in this release), one structural-debt refactor (the biggest god-file in the repo), bundle-weight reduction, a settings-wiring audit + fix pass, two design specs that unblock the next session, and a review-fleet close-out PR.
+Eight PRs covering three tester-reported fixes (a beta tester surfaced four real issues on 2026-05-12; PR #345 handled one yesterday, three more land in this release), one structural-debt refactor (the biggest god-file in the repo), bundle-weight reduction, a settings-wiring audit + fix pass, two design specs that unblock the next session, and a review-fleet close-out PR.
 
 ### Fixed: Ollama 180s timeout fired before slow hardware could respond
 
-[#347] `OllamaProvider.CONNECT_TIMEOUT` is now tier-aware. Minimal-tier (< 6 GB VRAM, includes CPU-only and integrated GPUs) gets 360s; GPU-accelerated machines stay at 180s. Surfaced by Cachev's report on an Intel UHD 770 (2 GB integrated): agent mode's ~3,500-token prompt prefill takes 3-4 min on CPU, but our 180s timeout fired before any token arrived. Yesterday's PR #345 made the error message accurate ("model is taking too long to load"); this PR makes the timeout match the hardware reality. Threshold tracks the budget-tier boundary in `HardwareTierClassifier`. Null-cache (pre-detect) defaults to 180s, optimistic, so misconfigured fast machines still fail fast.
+[#347] `OllamaProvider.CONNECT_TIMEOUT` is now tier-aware. Minimal-tier (< 6 GB VRAM, includes CPU-only and integrated GPUs) gets 360s; GPU-accelerated machines stay at 180s. Surfaced by a tester's report on an Intel UHD 770 (2 GB integrated): agent mode's ~3,500-token prompt prefill takes 3-4 min on CPU, but our 180s timeout fired before any token arrived. Yesterday's PR #345 made the error message accurate ("model is taking too long to load"); this PR makes the timeout match the hardware reality. Threshold tracks the budget-tier boundary in `HardwareTierClassifier`. Null-cache (pre-detect) defaults to 180s, optimistic, so misconfigured fast machines still fail fast.
 
-### Fixed: New terminals opened in home directory instead of active project (Cachev #1)
+### Fixed: New terminals opened in home directory instead of active project (tester report #1)
 
 [#350] Every IDE on the planet opens `terminal.cwd = project.path`; Bodega didn't. The infrastructure already supported it: `ipcPty.ts` accepts `cwd` in `pty-spawn`, `TerminalInstance` passes `tab.cwd` through, and the `TerminalTab` type has the optional field. The four `addTerminalTab` call sites (Ctrl+Shift+T, command palette "New Terminal Tab", auto-create-first-tab, and the + button on the tab bar) just weren't reading `codeProjectPath`. Each now reads it at tab-creation time. When no project is open, `cwd: undefined` and the PTY falls back to `os.homedir()` (unchanged for that case). Existing terminals keep their cwd if the user switches projects, matches shell semantics.
 
-### Fixed: NSIS installer radio button labels rendered dark-on-dark (Cachev #4)
+### Fixed: NSIS installer radio button labels rendered dark-on-dark (tester report #4)
 
 [#352] Install Mode page (the "Anyone who uses this computer" / "Only for me" radio buttons) was unreadable on our dark installer theme. The radio indicator circles honored `SetCtlColors` correctly, but the label TEXT fell through to Windows visual-theme defaults, grey on dark, basically invisible. Cause: on Win10/11, themed BUTTON-class controls partially ignore `SetCtlColors` for text rendering unless the visual theme is explicitly stripped. Fix: call `SetWindowTheme(hwnd, "", "")` on every enumerated control in `colorPageControls` before applying colors. Same uxtheme strip we already use for the InstFiles progress bar: generalizing it to the page-walker covers radio buttons and any other themed BUTTON children at any depth.
 
@@ -6094,26 +6204,26 @@ Net audit result: 45 fully wired, 92 intentionally backend-only (model tier rout
 - Disabling the AI Audit Trail toggle previously fired a green `'success'` toast. Switched to `'warning'`. Disabling a safety feature should visually signal significance.
 - `npm audit fix` cleared the `fast-uri` HIGH-severity advisory in both backend + desktop-app lockfiles. The remaining moderate `dompurify`-via-`monaco-editor` advisory needs a breaking Monaco downgrade and is deferred to beta.20.
 
-### Added: Cachev follow-up design specs
+### Added: Beta tester follow-up design specs
 
 [#351] Two specs in `source-of-truth/specs/`:
 
 - **`installer-dark-theme-spec-2026-05-13.md`**: maps existing NSIS coverage per MUI2 page, ranks five hypotheses for which control could still render dark-on-dark, lists three verification paths. Hypothesis D was the one that landed as #352; hypotheses A/B/C/E remain on the shelf if other dark-on-dark surfaces emerge.
 - **`multi-code-sessions-spec-2026-05-13.md`**: design doc for Cursor-style multi-session tabs. Current model is single-active-session with destructive switching; target model is `activeCodeSessionId` + `openCodeSessionIds[]` + per-session scratch state map. 14-file touch list, 5-phase delivery plan, ~2-3 days focused work. Spec self-flags the unverified backend claims that need tracing before implementation.
 
-### Cachev follow-up: what's left
+### Beta tester follow-up: what's left
 
-Of Cachev's four reports from 2026-05-12: #1 (terminal in project) shipped in this release, #4 (NSIS dark fonts) shipped. #2 (folder preview expandable) still needs his clarification on which surface he hit, likely the `@mention` menu or the project picker, not the FileTree (already expandable). #3 (multi-code-sessions) is specced and ready to implement.
+Of the tester's four reports from 2026-05-12: #1 (terminal in project) shipped in this release, #4 (NSIS dark fonts) shipped. #2 (folder preview expandable) still needs his clarification on which surface he hit, likely the `@mention` menu or the project picker, not the FileTree (already expandable). #3 (multi-code-sessions) is specced and ready to implement.
 
 ---
 
 ## [v1.0.0-beta.18.3] - 2026-05-11
 
-Patch release. Twelve fixes covering provider-switch state hygiene, three classifier regressions Joe caught during live cloud-provider testing, and the long-running IDE↔Chat session leak that's been hitting users since `useChat` was extended to power both the chat panel and the IDE Agent panel. Three PRs merged: #336 (provider switch), #337 (classifier round 2), #338 (QA findings).
+Patch release. Twelve fixes covering provider-switch state hygiene, three classifier regressions caught during live cloud-provider testing, and the long-running IDE↔Chat session leak that's been hitting users since `useChat` was extended to power both the chat panel and the IDE Agent panel. Three PRs merged: #336 (provider switch), #337 (classifier round 2), #338 (QA findings).
 
 ### Fixed: IDE Agent panel writes leaked into chat session (THE LEAK)
 
-`useChatSend.handleSend` had `const currentSessionId = sessionId ?? useStore.getState().activeSessionId`. For `ChatStage`'s `useChat` instance that's fine: `sessionId` IS `activeSessionId`, the `??` never fires. For `AgentChatPanel`'s `useChat` instance with `codeSessionId=null` (any time before the user explicitly creates a code session), `sessionId` is null → the fallback returns `activeSessionId`, the chat session's id. Result: sending in code mode wrote the user message to the chat session in the DB, the backend broadcasted `session_message{session_id: chatId}` via WebSocket, the chat panel's filter (`sid === activeSessionId`) passed, and the message appeared in chat. Meanwhile the optimistic `addMessage` on code mode's local state rendered the same message in the code panel. Identical conversation visible in both modes, exactly what Joe screenshotted on every test instance for weeks.
+`useChatSend.handleSend` had `const currentSessionId = sessionId ?? useStore.getState().activeSessionId`. For `ChatStage`'s `useChat` instance that's fine: `sessionId` IS `activeSessionId`, the `??` never fires. For `AgentChatPanel`'s `useChat` instance with `codeSessionId=null` (any time before the user explicitly creates a code session), `sessionId` is null → the fallback returns `activeSessionId`, the chat session's id. Result: sending in code mode wrote the user message to the chat session in the DB, the backend broadcasted `session_message{session_id: chatId}` via WebSocket, the chat panel's filter (`sid === activeSessionId`) passed, and the message appeared in chat. Meanwhile the optimistic `addMessage` on code mode's local state rendered the same message in the code panel. Identical conversation visible in both modes, exactly what testing showed on every test instance for weeks.
 
 The bug had been there since `useChat` was generalized to handle both modes (pre-beta.18 split). Console-trace instrumentation isolated it: `setLocalMessages` fired for code mode with chat-content from `executeSend.ts`'s reconcile path, while `setCodeSessionId` never fired at all. Fix: gate the fallback to `sessionType === 'chat'`. For `sessionType === 'code'`, null `sessionId` means "no session yet" and `autoCreateSession` kicks in below to spin up a fresh code session.
 
@@ -6148,7 +6258,7 @@ BUG-DM-15 (perf optimization) reduced the `settings` object passed downstream to
 - `VERBS` list had `'what is'` / `"what's"` / `'what does'` but **not `'what are'`**
 - `TARGETS` list had `'files'` but **not `'folder'`** / **`'contents'`**
 
-After 3 file reads, `NudgeOrchestrator` emitted "STOP READING FILES. This is a knowledge question..." into DeepSeek-v4-pro's stream. DeepSeek looped on the contradiction for 440 seconds before producing anything. Enriched both lists; added 5 regression tests in `RuntimeLayer.test.ts` + 2 in `NudgeOrchestrator.test.ts` to lock the Joe-hit prompts.
+After 3 file reads, `NudgeOrchestrator` emitted "STOP READING FILES. This is a knowledge question..." into DeepSeek-v4-pro's stream. DeepSeek looped on the contradiction for 440 seconds before producing anything. Enriched both lists; added 5 regression tests in `RuntimeLayer.test.ts` + 2 in `NudgeOrchestrator.test.ts` to lock the reported prompts.
 
 ### Fixed: DeepSeek-v4-flash chat-mode raw `<function_calls>` XML in user response
 
@@ -6182,7 +6292,7 @@ The composer's "What can you help me with?" appears to be a placeholder but is a
 
 ### Fixed: API key field looked unfilled when configured
 
-`ProviderCard`'s API-key input rendered empty when a key was stored (backend sends `__BODEGA_REDACTED__` and `getSecretFieldState` strips it to `''` for display). The default `'sk-...'` placeholder then made the field look unfilled, which Joe read as "key didn't persist" during cross-provider testing. Now shows `"••••••••• (saved. Paste to replace)"` placeholder when `apiKeyConfigured`, plus a green `"✓ Key saved for this provider"` hint below the input.
+`ProviderCard`'s API-key input rendered empty when a key was stored (backend sends `__BODEGA_REDACTED__` and `getSecretFieldState` strips it to `''` for display). The default `'sk-...'` placeholder then made the field look unfilled, which read as "key didn't persist" during cross-provider testing. Now shows `"••••••••• (saved. Paste to replace)"` placeholder when `apiKeyConfigured`, plus a green `"✓ Key saved for this provider"` hint below the input.
 
 ### Fixed: 23 pre-existing SettingsService tests failing on `SecretCipher.initialize()`
 
@@ -6379,7 +6489,7 @@ Featherless's serverless inference cold-starts at 30-60s. Without help, the firs
 - **BUG-DM-17: `/api/models/:name/info` input length cap** at 200 chars. Caps the user-controlled path param before it reaches the regex scan + profile lookup.
 - **BUG-DM-18: SSRF guard on `/cloud-key/validate` baseUrl`**: rejects private/loopback addresses (localhost, 127.x, 10.x, 192.168.x, 172.16-31.x, 169.254.x cloud metadata, IPv6 loopback `::1`/`::`, IPv6-mapped IPv4 `::ffff:7f00:1`, IPv6 ULA `fc00::/7`, IPv6 link-local `fe80::/10`, trailing-dot FQDN form `localhost.`, non-http protocols). Self-hosted local providers still go through `/llm/test-connection` which is intentionally permissive about local hosts.
 
-### Polished: Models tab UI (Joe E2E sweep)
+### Polished: Models tab UI (E2E sweep)
 
 - **Redundant search box removed from My Models + Providers tabs.** The 8 inline role pickers in My Models are themselves search inputs (with shared autocomplete); the global filter was duplicate effort. Search input now only renders on Discover where catalog browsing actually benefits from a global filter. Stale "Type to search · X of Y models" hint replaced with a clean "X models available" count.
 - **Dark-theme white-box bug fixed.** Chromium applies a yellow/white `:-webkit-autofill` background when an `<input list="...">` gets a value via the native datalist autocomplete. Live-repro'd in the Default role picker: pick a model → input box turned white-on-dark. CSS override in `index.css` uses the inset box-shadow trick (autofill ignores `background-color` directly but respects inset shadow) plus `text-fill-color` and `caret-color` locks to keep the typed value in the theme's text color.
@@ -6434,14 +6544,14 @@ Headline: **V2 Phase 2 lands and the agentic loop gets honest.** Cloud providers
 ### Fixed: `/think` prefix sent to non-Qwen models (ship-blocker, found live)
 
 - **`LoopStateMachine.computeQwenThinkingPrefix`** had been extended to the DeepSeek family on the false premise that DeepSeek R1+ understands Qwen3's `/think` slash-prefix toggle. It does not. DeepSeek's thinking mode is automatic via inline `<think>...</think>` blocks; no input control prefix is recognized.
-- **Joe-hit symptom on deepseek-v4-flash, "Explain this repo structure":** every iteration was prepended with `/think\n\n`, the model parsed it as an unknown user slash command, and refused: *"`/think` is not a registered command in this environment. I have no handler or skill for it. I've stopped reading files. I'm not calling tools."* Loop hit the 20-iteration cap with $0.034 burned and no answer.
+- **Symptom on deepseek-v4-flash, "Explain this repo structure":** every iteration was prepended with `/think\n\n`, the model parsed it as an unknown user slash command, and refused: *"`/think` is not a registered command in this environment. I have no handler or skill for it. I've stopped reading files. I'm not calling tools."* Loop hit the 20-iteration cap with $0.034 burned and no answer.
 - **Fix reverts the family check to qwen-only.** Twelve regression tests pin the contract for non-qwen families across every iteration count + signal permutation.
 
 ### Fixed: Nudge classifier mismatch (ship-blocker, found live)
 
 - **`NudgeOrchestrator.detectOverEagerToolUse`** and **`detectExplorationLoop`** now route through `RuntimeLayer.isExplorationIntent` first. Pre-fix, two classifiers disagreed: `RuntimeLayer` correctly routed exploration prompts to the full lane (PR #308), but `NudgeOrchestrator` kept its own simpler heuristic that flagged "explain X" as a simple question regardless of whether X was a codebase target.
-- **Joe-hit symptom on qwen3-coder-plus, same prompt:** after 3 file reads the loop emitted *"STOP READING FILES. This is a knowledge question that does not require file access. Answer from your training knowledge directly. Do not call any more tools."* The model produced a 5-point rebuttal quoting the nudge text back to the user as a contradiction, then capped out at iteration 25.
-- **Fix:** exploration intent now skips both nudges. Existing nudge cases keep working: "explain closures in JavaScript", "what is 2+2?", "how does JavaScript work?" all have no codebase target, all still trigger the nudges correctly. Nine regression tests cover the Joe-hit prompt, four other exploration phrasings, and three negative cases.
+- **Symptom on qwen3-coder-plus, same prompt:** after 3 file reads the loop emitted *"STOP READING FILES. This is a knowledge question that does not require file access. Answer from your training knowledge directly. Do not call any more tools."* The model produced a 5-point rebuttal quoting the nudge text back to the user as a contradiction, then capped out at iteration 25.
+- **Fix:** exploration intent now skips both nudges. Existing nudge cases keep working: "explain closures in JavaScript", "what is 2+2?", "how does JavaScript work?" all have no codebase target, all still trigger the nudges correctly. Nine regression tests cover the reported prompt, four other exploration phrasings, and three negative cases.
 
 ### Fixed: Cross-mode state leaks (3 fixes)
 
@@ -6571,7 +6681,7 @@ Headline: **first-class llama.cpp support.** Bodega now installs and manages a l
 ### Fixed: Code mode tools
 
 - **Code mode now actually calls tools on llama.cpp.** Pre-fix: agentic loop shipped `effectiveTools=[]` because the model name resolution returned a record id (`managed-...`) that didn't match any profile, so `caps.nativeFunctionCalling` defaulted to `false`. Now the OpenAIProvider gets the served filename in-memory while settings keep the record id. Verified live: `loop_setup` reports `toolCount=21, family=qwen, nativeFunctionCalling=true`.
-- **Cross-family caps alignment.** Phi-4 + Gemma-3 catalog entries previously claimed `supportsTools: true` but their profiles pinned `nativeFunctionCalling: false` (Joe-tested earlier: Gemma "degenerates into thinking-only output after 3-4 successful tool calls"). Catalog now matches profile reality so the `--jinja` flag and the agentic tool-passing decision stay consistent.
+- **Cross-family caps alignment.** Phi-4 + Gemma-3 catalog entries previously claimed `supportsTools: true` but their profiles pinned `nativeFunctionCalling: false` (tested earlier: Gemma "degenerates into thinking-only output after 3-4 successful tool calls"). Catalog now matches profile reality so the `--jinja` flag and the agentic tool-passing decision stay consistent.
 - **DeepSeek-R1-Distill-Qwen no longer mis-classified as qwen.** `detectFamily` checked qwen before deepseek, so distills inherited the wrong family caps. Re-ordered + new `deepseek-r1-distill` profile entry pins R1 distills to `nativeFunctionCalling: false` (the thinking/tool interleaving breaks down in the distilled weights).
 - **Persistence on restart now works.** Pre-fix: every Bodega launch with `preset=llamacpp` configured silently fell back to default Ollama provider because `GgufRegistry.setDb()` ran AFTER `LLMService.reconfigureFromSettings()`, throwing "DB not initialized" inside the auto-load path. The error logged at `level=warn` was easy to miss; users had to manually toggle preset to recover. Init order corrected. Auto-load verified live within ~30s of restart.
 
@@ -6615,23 +6725,23 @@ Backend 3,728 → **3,772** (+44 covering crash recovery, alreadyLoaded liveness
 
 ## [v1.0.0-beta.15] - 2026-05-05
 
-Cross-platform fix bundle from Joe's beta.14 install-test on Windows + Martin's on Intel Mac. Same-day follow-up to beta.14: 8 fixes plus a major expansion of the diagnostics-bundle export so future "user got an error and is gone" reports are debuggable from a single dropped file.
+Cross-platform fix bundle from beta.14 install tests on Windows and Intel Mac. Same-day follow-up to beta.14: 8 fixes plus a major expansion of the diagnostics-bundle export so future "user got an error and is gone" reports are debuggable from a single dropped file.
 
 ### Fixed: First-launch UX
 
-- **First-run flow no longer picks an embedding model as the default.** Martin's macOS Intel install ended up with `llm.default_model: "nomic-embed-text"` because Ollama's tag list returned the embedder before any chat-capable model. Two failed 0-token completions before he manually switched to `qwen3:4b`. New `isEmbeddingModelName()` filter in `modelUtils.ts` covers `nomic-embed`, `mxbai-embed`, `bge-`, `all-minilm`, `jina-embed`, `gte-`, `e5-`, `instructor-`, `voyage-`, and the `-embedding`/`-embed` suffix shapes, applied at every selection site in `FirstRunFlow.tsx` plus the `resolveAutoCodeModel` / `pickFastModel` / `pickSmartModel` auto-resolvers. Embedders are still selectable in the embedding settings; they're just no longer eligible defaults for chat/code.
+- **First-run flow no longer picks an embedding model as the default.** A macOS Intel install ended up with `llm.default_model: "nomic-embed-text"` because Ollama's tag list returned the embedder before any chat-capable model. Two failed 0-token completions before he manually switched to `qwen3:4b`. New `isEmbeddingModelName()` filter in `modelUtils.ts` covers `nomic-embed`, `mxbai-embed`, `bge-`, `all-minilm`, `jina-embed`, `gte-`, `e5-`, `instructor-`, `voyage-`, and the `-embedding`/`-embed` suffix shapes, applied at every selection site in `FirstRunFlow.tsx` plus the `resolveAutoCodeModel` / `pickFastModel` / `pickSmartModel` auto-resolvers. Embedders are still selectable in the embedding settings; they're just no longer eligible defaults for chat/code.
 
 ### Fixed: Agentic loop
 
-- **`gemma4:26b` no longer wedges in the agent panel after a few tool calls.** Joe-hit on Windows: 3 successful file reads then 5 thinking-only iterations stripped to empty by the filter, hitting iter cap with no answer. Root cause: `ModelProfileService` blindly trusted Ollama's GGUF `tools` capability flag for every model family. New `NATIVE_TOOLS_DENYLIST_FAMILIES` (currently `['gemma']`) keeps the family default (text-injection format) when Ollama claims native tool support but the family is known to degenerate. Explicit `gemma4` entry in `model-profiles.json` pins this for the model card too.
+- **`gemma4:26b` no longer wedges in the agent panel after a few tool calls.** Seen on Windows: 3 successful file reads then 5 thinking-only iterations stripped to empty by the filter, hitting iter cap with no answer. Root cause: `ModelProfileService` blindly trusted Ollama's GGUF `tools` capability flag for every model family. New `NATIVE_TOOLS_DENYLIST_FAMILIES` (currently `['gemma']`) keeps the family default (text-injection format) when Ollama claims native tool support but the family is known to degenerate. Explicit `gemma4` entry in `model-profiles.json` pins this for the model card too.
 
 ### Fixed: macOS
 
-- **Traffic lights no longer overlap the top-bar controls when not fullscreen.** Martin-reported on Intel Mac. `BrowserWindow.trafficLightPosition: { x: 12, y: 9 }` shifts the lights down + right; `.platform-darwin .titlebar-left-pad { padding-left: 76px }` insets the hamburger / gear / search row to clear them. `platform-darwin` class is set in `App.tsx` based on `navigator.platform`.
+- **Traffic lights no longer overlap the top-bar controls when not fullscreen.** Reported on Intel Mac. `BrowserWindow.trafficLightPosition: { x: 12, y: 9 }` shifts the lights down + right; `.platform-darwin .titlebar-left-pad { padding-left: 76px }` insets the hamburger / gear / search row to clear them. `platform-darwin` class is set in `App.tsx` based on `navigator.platform`.
 
 ### Fixed: Code-mode chrome
 
-- **Switching sessions mid-stream now tells the user it cancelled.** Joe-asked: "not sure if this is a bug or intended." Stopgap fix: a toast informs the user when the switch tore down an in-flight response. Full background-streams rework (Cursor-style: keep the stream alive in the original session, lift `AbortController` to a per-session map in Zustand) is tracked as a v1.0.2 task.
+- **Switching sessions mid-stream now tells the user it cancelled.** Reported: "not sure if this is a bug or intended." Stopgap fix: a toast informs the user when the switch tore down an in-flight response. Full background-streams rework (Cursor-style: keep the stream alive in the original session, lift `AbortController` to a per-session map in Zustand) is tracked as a v1.0.2 task.
 
 ### Fixed: Model Hub
 
@@ -6668,12 +6778,12 @@ Two-reviewer pass before merge caught and fixed:
 
 ## [v1.0.0-beta.14] - 2026-05-05
 
-Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a long tail of Joe-tested polish. The IDE layout no longer fights the user's drag, the agent doesn't wedge at iter cap, and the Code-mode chrome (model badge, context ring, composer) now reflects what's actually selected.
+Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a long tail of tested polish. The IDE layout no longer fights the user's drag, the agent doesn't wedge at iter cap, and the Code-mode chrome (model badge, context ring, composer) now reflects what's actually selected.
 
 ### Added: llama.cpp provider expansion
 
 - **`/infill` endpoint** in `OpenAIProvider`: llama-server's mid-context completion path. Bodega's Code mode now drives the same FIM (fill-in-the-middle) flow the upstream llama.cpp completions tool uses, so `Qwen2.5-Coder-*-Instruct` GGUFs route through `/infill` instead of getting forced into chat-completions for inline suggestions. Test GGUF + invocation guide in `apps/desktop/backend/scripts/test-llamacpp.md`.
-- **`configs/` bundled in extraResources** so packaged builds can resolve `model-profiles.json` (E3). Fixes "Failed to load model catalog" on first launch of an installed `.dmg` / `.exe`, same ENOENT signature Martin hit on beta.12.2.
+- **`configs/` bundled in extraResources** so packaged builds can resolve `model-profiles.json` (E3). Fixes "Failed to load model catalog" on first launch of an installed `.dmg` / `.exe`, same ENOENT signature seen on beta.12.2.
 - **Terminal side-dock.** Terminal can dock right OR bottom in Code mode (`terminal.dock_side` setting). Right-dock is the layout most useful next to a wide editor; bottom-dock keeps the VS Code default for muscle memory.
 
 ### Fixed: IDE layout (E1)
@@ -6699,7 +6809,7 @@ Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a lon
 
 ### Fixed: Onboarding / first-run
 
-- **Multi-model fast-path no longer silent-completes.** The fast-path was completing onboarding with `general.has_completed_onboarding=true` on any provider with ≥1 model. But if Joe had three, it picked one without him seeing the choice. Single-model only silently completes; multi-model routes back to the local-ready picker.
+- **Multi-model fast-path no longer silent-completes.** The fast-path was completing onboarding with `general.has_completed_onboarding=true` on any provider with ≥1 model. But with three, it picked one without him seeing the choice. Single-model only silently completes; multi-model routes back to the local-ready picker.
 
 ### Fixed: Persistence / multi-user
 
@@ -6724,18 +6834,18 @@ Layout overhaul, agentic loop hardening, llama.cpp provider expansion, and a lon
 
 ## [v1.0.0-beta.13.1] - 2026-05-04
 
-Hotfix bundle for v1.0.0-beta.13. **beta.13 was drafted (un-published) within the hour of release** because the macOS x64 build shipped an arm64 sqlite3 binding (broke Intel Macs) and the Linux arm64 build shipped an x86_64 sqlite3 binding (broke arm64 Linux). Martin caught the dlopen error on his Intel Mac and three additional UX regressions during smoke testing before any external user saw the binary.
+Hotfix bundle for v1.0.0-beta.13. **beta.13 was drafted (un-published) within the hour of release** because the macOS x64 build shipped an arm64 sqlite3 binding (broke Intel Macs) and the Linux arm64 build shipped an x86_64 sqlite3 binding (broke arm64 Linux). Testing caught the dlopen error on his Intel Mac and three additional UX regressions during smoke testing before any external user saw the binary.
 
 ### Fixed: Cross-arch native modules
 
 - **`npmRebuild` flipped from `false` to `true`.** electron-builder now runs `@electron/rebuild` for each TARGET arch during packaging, instead of relying on whatever arch `electron-builder install-app-deps` happened to install during the `postinstall` step. Each platform package now contains the correct native binding for its architecture.
 - **Linux build matrix split into per-arch runners.** `ubuntu-latest` (x86_64) builds the x64 `.deb` + `.AppImage` only; the new `ubuntu-24.04-arm` runner builds the arm64 variants. Previously a single `ubuntu-latest` job claimed to build both archs but couldn't compile aarch64 ELF without a cross-compiler. macOS keeps a single runner (Apple's universal toolchain handles both archs natively).
 
-### Fixed: UX regressions caught during Martin's smoke
+### Fixed: UX regressions caught during smoke testing
 
 - **OnboardingChecklist "Send your first message" now ticks immediately.** `message_count` was being read from the sessions list (which mirrors the backend's stored count and isn't refetched per-send), so the first-message item never completed until the user navigated away and back. `addSessionMessage` now bumps the matching session's `message_count` locally as messages arrive, so the checklist reflects state in real time.
-- **Quick Message buttons under the logo now populate the input.** SuggestionChips were calling `chat.setInput()` directly; some state-flow path between the chat-prop and the controlled textarea wasn't picking up the value reliably (Martin's repro: clicking a sub-prompt did nothing). Switched the chip click to route through `setPrefillMessage` (the same store path FirstRunFlow uses), and changed the consumer effect in `ChatStageInput` to depend on `prefillMessage` so it actually fires on post-mount changes (was `[]` deps, fired on mount only).
-- **First-run flow auto-recovers users stranded by the C-3 brick.** beta.12.2 had a bug where clicking "Skip setup" on the detection spinner set `general.has_completed_onboarding=true` with no provider configured, leaving the user in a no-model Chat mode permanently. The C-3 fix in beta.13 prevented future bricking but didn't recover existing victims (Martin was one). `useAppSettings` now detects the stranded state on launch (flag is set, but no `default_model`, no `chat_model`, no `openai_api_key`), clears the flag and re-mounts FirstRunFlow.
+- **Quick Message buttons under the logo now populate the input.** SuggestionChips were calling `chat.setInput()` directly; some state-flow path between the chat-prop and the controlled textarea wasn't picking up the value reliably (repro: clicking a sub-prompt did nothing). Switched the chip click to route through `setPrefillMessage` (the same store path FirstRunFlow uses), and changed the consumer effect in `ChatStageInput` to depend on `prefillMessage` so it actually fires on post-mount changes (was `[]` deps, fired on mount only).
+- **First-run flow auto-recovers users stranded by the C-3 brick.** beta.12.2 had a bug where clicking "Skip setup" on the detection spinner set `general.has_completed_onboarding=true` with no provider configured, leaving the user in a no-model Chat mode permanently. The C-3 fix in beta.13 prevented future bricking but didn't recover existing victims . `useAppSettings` now detects the stranded state on launch (flag is set, but no `default_model`, no `chat_model`, no `openai_api_key`), clears the flag and re-mounts FirstRunFlow.
 
 ### Verified before publish
 
@@ -6988,7 +7098,7 @@ Six release iterations across `.11 → .12 → .12.1 → .12.2`, with `.11` and 
 - **Ctrl-shortcuts firing from inputs + About section gating** (#170):
   shortcuts now work when an input is focused; About section no longer
   hidden behind advanced.
-- **Two shipping bugs from Joe's live session logs** (#109).
+- **Two shipping bugs from live session logs** (#109).
 - **What's New modal fetch bug** (#110).
 
 ### Fixed: FIM, embeddings, prompt
@@ -7145,14 +7255,9 @@ Six release iterations across `.11 → .12 → .12.1 → .12.2`, with `.11` and 
   auto-update.
 - **Beta-readiness specs** (#183): model lineup spec + email-capture
   activation spec + provider-matrix testing spec.
-- **Provider matrix spec** (#167). Joe approved with 4 decisions.
+- **Provider matrix spec** (#167). Approved with 4 decisions.
 - **RELEASE-SIGNING.md**: full SignPath + Apple Dev cert wiring guide.
 - **Phase 14 game plan**: User-Definable Agents architecture.
-- **SOT cleanup**: archived 5 stale docs (`JoeTracker-SessionLog-3`,
-  `SESSION-2026-04-20`, `RC-NOTES-1.0.0-beta.10-2026-04-20`,
-  `PRETAG-TEST-RESULTS-2026-04-27`, `PLAYWRIGHT-RESULTS-2026-04-21`,
-  `MARTIN-LAUNCH-HANDOFF-2026-04-27`); refreshed CLAUDE.md numbers via
-  Doc Guardian agent.
 
 ### Tests: totals
 
