@@ -7,6 +7,220 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.50] - 2026-11-09
+
+### Security
+
+- **Chat previews can no longer reach the internet.** When a reply contained
+  HTML or an SVG, the preview panel could load images, stylesheets and fonts
+  from any server, even with air-gap on, and a link in the preview could load a
+  web page inside it. Previews now load nothing from the network: every HTML
+  and SVG preview carries a policy that blocks all outside requests, SVGs
+  render inside the locked preview instead of in the app itself, and the app
+  refuses any attempt by a preview to navigate away. Blocked attempts under
+  air-gap are counted in the air-gap report. This is air-gap layer 24.
+- **Opening a folder from the menu asks whether to trust it.** The top-bar
+  menu's Open Folder and the native File menu opened the folder without the
+  trust prompt, so a repository's own Bodega settings could stay switched on
+  from the project you had open before. They now go through the same trusted
+  open as everything else, and the folder appears in Recent projects. A
+  session link or notification that opens a session in another project goes
+  through the same trusted open.
+- **GitHub calls follow a project's Air-Gap Vault.** Pull request, issue,
+  check and review-comment requests to GitHub are refused for a vaulted
+  project, not only when air-gap is on for the whole app.
+- **Air-gap now covers Test Connection.** With air-gap on, Settings > Test
+  Connection only reaches a server on this machine; a cloud URL is refused
+  instead of being probed with the stored key attached.
+- **Four more air-gap gaps closed.** Turning air-gap on from a single setting
+  now drops a live cloud model right away (it used to stay until the next
+  model change). Switching to a cloud model that air-gap refuses no longer
+  leaves that model half-selected. A remote model server with no address set
+  is refused instead of falling back to OpenAI. A project's Air-Gap Vault now
+  hides cloud providers in the model picker too.
+- **Removing an MCP server deletes its saved API key and sign-in tokens.**
+  They used to stay in settings after the server was gone.
+- **A local model server can no longer redirect a request off this machine.**
+  A request to a server on this machine used to follow a redirect to any host,
+  carrying the prompt and headers with it after the air-gap checks had passed.
+  A redirect that leaves this machine is now refused.
+- **With a project's Air-Gap Vault on, image questions no longer reuse a
+  vision model on a remote engine** that was paired earlier.
+
+### Fixed
+
+- **Focus rings show only when you navigate by keyboard.** Pressing Enter in
+  the composer no longer lights a ring on whatever the app focuses next (such as
+  Keep or Undo after an agent edit), and the diff review no longer opens with a
+  purple outline on its first hunk. Rings and the hunk cursor appear after Tab,
+  arrow keys, F6, or j/k, not after a click or a programmatic focus change.
+- **Undo all restores what was there before.** The Run summary could read
+  "+0 −0" and Undo all could report success while leaving the agent's edit on
+  disk, because the "before" copy was read after the edit had already landed.
+  It is now taken before the write: when you approve the edit, or, for an edit
+  that needed no approval, from the snapshot Bodega saves before writing.
+- **A downloaded or sideloaded local model is named by its file.** Asked which
+  model it is, the agent said `sideload-1794…` instead of the model's name.
+- **Follow a PR from the run that opened it.** When "Automate a task" opens
+  a pull request, the result card has **Follow this PR**: it reopens the run in
+  its own worktree on the PR's branch, where the PR panel shows it. The run
+  also stays in Runs > History. Before, the run deleted its worktree and there
+  was nowhere in the app to watch the PR from.
+- **The PR panel still shows the PR when GitHub refuses to list its checks.**
+  A token that may not read check runs (seen with a fine-grained token) made
+  that one request fail, and the whole panel showed only "forbidden". The panel now shows the PR and says the checks are
+  unknown, rather than hiding everything or implying there are none.
+- **A worktree session's pull request panel shows that session's pull
+  request.** It showed the pull request for whatever branch the main folder had
+  checked out, and the status bar could say "Main tree" for a session that had
+  just been reopened in its worktree.
+- **A restore that cannot bring the worktree back right now keeps the
+  session archived with its branch.** If the branch is checked out somewhere
+  else, try Restore again once it is free. Before, the session came back
+  without its branch and could not be reconnected.
+- **External agents are no longer offered in parallel runs.** Claude
+  Code, Codex, Gemini and the other external agents could be picked for a
+  parallel run, but each one failed as soon as it started. The parallel-run
+  picker now greys them out and says why, and the app refuses to create such a
+  run. External agents still run in their own chat or background session.
+  (App only; the CLI's fleet does not drive external agents.)
+- **The help pages say exactly what Bodega controls for external agents.**
+  They said external agents run in a sandbox and "cannot reach outside the
+  worktree". What Bodega controls is the file and shell requests an agent sends
+  through Bodega; the agent's own built-in tools, and an agent running without
+  its ACP adapter, run as you with the worktree as their starting folder,
+  governed by the agent's own permission settings.
+- **A dry run no longer needs a GitHub token.** "Automate a task" with **Dry
+  run** never opens a pull request, so it now starts without a token or a
+  github.com remote. A run from a GitHub issue still needs both.
+- **Asking for setup approval is no longer skipped in Ask mode.** A new
+  worktree could run the project's setup script without showing the approval
+  card when the session and your setting disagreed; it now asks unless both
+  say act. A copy pattern that names a folder now copies the folder.
+- **Loading older messages is fast on long chats** (about 1.5 ms instead of
+  up to 55 ms per page on a 3,000-message chat), and the Debug and Research
+  panels no longer download the whole chat to read one reply.
+- **Renaming a branch that is already pushed is refused** instead of moving
+  it out from under its pull request.
+- **Memories are no longer deleted at startup.** A memory whose extra data
+  was unreadable was removed the next time the app started, project memories
+  included. It is now kept; only the unreadable part is cleared.
+- **Turns on your default model are labelled and priced as that model.** On
+  some paths a turn with no model picked was recorded, and priced, as
+  `gpt-4o`. The provider health check no longer reports `gpt-4o` for a
+  provider with no model set, either.
+- **A loop schedule with a step of 0 (`*/0`) is rejected at once** instead of
+  stalling the app for a second or two each time it was checked. Bad loop and
+  run-history inputs now return a clear error instead of a server error.
+- **Model detection no longer hides every provider on a bad timeout.** A
+  timeout that was not a number used to make detection find nothing, and a
+  very large one made it hang; both are now rejected with a clear error.
+- **A model-family update to learning data finishes before the app starts
+  using it**, instead of running in the background at startup.
+- Opening the model catalog no longer marks the detected context ceiling as a
+  setting you chose, so export and reset treat it as a default.
+- **Opening Settings puts the cursor in the search box**, so you can type to
+  search right away. A link that opens Settings at a specific row still focuses
+  that row.
+- **Opening a project with Runs showing keeps one sidebar column.** Explorer
+  now opens as a tab in the existing sidebar group instead of adding a second
+  column that squeezed Runs to a third of the window.
+- **Cost estimates no longer under-count on several providers.** xAI models
+  bill the 2x rate past 200K context, GPT-6 / GPT-5.6 bill cache writes,
+  MiniMax M3 bills its top band, Kimi K3.1 Pro and Highspeed have their own
+  rates (Highspeed was billed as Kimi K3), and Boost DeepSeek V3 and Gemma 2 27B
+  are at current prices. New rates for GLM-5 / 4.7 / 4.6, Mistral Small 2603 and
+  the Ministral models. The Spending help page now says which provider
+  surcharges the estimate leaves out.
+- **Long prompts on OpenAI bill the long-context rate.** Past 272K tokens,
+  GPT-5.4, GPT-5.5, their Pro versions and the GPT-5.6 and GPT-6 lines bill
+  2x input and 1.5x output. Cohere Command A and A+ now have rates.
+- **Six local model tags that no longer download are fixed or removed.**
+  `llama4:scout`, `devstral:24b` and `codestral:22b` replace their broken tags;
+  Mistral Small 4, Phi-4 Reasoning Vision and Gemma 4 4B are removed. MiMo
+  v2.6 9B and Nemotron 3.5 Bolt are added with vision support.
+
+### Added
+
+- **Work on a pull request without leaving Code Mode.** A panel under the
+  "what's next" strip shows the branch's pull request, its checks by name, open
+  review threads and whether it can merge. Review comments appear on their
+  line in the Fleet diff and Review Changes; you can have the agent draft a
+  reply (it fills the box, it never posts), post a reply yourself, or ask the
+  agent to fix the failing checks by name. **Merge** is a button only you can
+  press, behind a confirm. Under air-gap or a project vault the panel stays
+  quiet and nothing is sent to GitHub.
+- **Branches named after the task.** A worktree or Fleet session's branch is
+  renamed from `bodega/session-42` to something like
+  `bodega/fix-null-handling-s42` once the session has a title. Rename it
+  yourself from the Fleet card or the composer's location chip. Turn it off
+  with Settings > Fleet > Name branches after the task.
+- **Archive keeps the branch.** Archiving a worktree session commits its
+  unsaved changes to the branch and removes the folder; **Restore** brings the
+  worktree back. Archived sessions are in Runs > History. Settings > Background
+  runs lists archived branches and deletes them only when you ask.
+- **See one commit at a time in the Fleet diff**, or only the uncommitted
+  changes, from the new Commits menu.
+- **Move rows up and down in Runs** (Done and Recent) from the row menu or
+  with Alt+Up / Alt+Down. The order is remembered.
+- **Open a session from a `bodega://session/<id>` link or by clicking its
+  notification.** Bodega Remote can include the link when
+  `remote.deep_links` is on (off by default).
+- **Keep the computer awake while a run is going** (Settings > "Keep my
+  computer awake during runs", off by default). Works only while plugged in;
+  the screen can still sleep.
+- **Comment on a diff and send the comments to the agent.** In Code Mode, click
+  or shift-click lines in a diff, write a comment, and send all pending
+  comments to the Agent panel as one attachment.
+- **Model loadouts.** Save a provider, model and mode as one of five loadouts
+  and switch with Ctrl+Shift+1 to 5. A cloud loadout is greyed out under
+  air-gap. They are listed in Keyboard Shortcuts.
+- **A "what's next" strip in the Agent panel** suggests one next step (fix the
+  failing checks, commit, open the pull request, and so on) from the checks,
+  git and the plan. Pressing it asks the agent to do that step. Under air-gap it
+  makes no GitHub call and leaves pull request and CI status out.
+- **Start a Fleet session from an existing branch or worktree**, not only a new
+  branch. Your branch is used in place and never deleted. The Sessions drawer
+  opens the same picker.
+- **Each worktree session gets its own block of 10 ports**, exported to the
+  agent's shell and your terminals as `BODEGA_PORT_BASE` and `BODEGA_PORT_END`,
+  so parallel sessions can run dev servers without clashing. Parallel runs and
+  sessions moved to a worktree now get the project's environment too (copied
+  files, setup script, ports).
+- **Five more local models:** Ornith 1.5 9B, Cohere North Mini Code (488K
+  context), Nemotron Cascade 2 30B-A3B, Meta Muse Glimmer 30B and Liquid
+  LFM2.5 24B (catalog 1.12.0).
+
+### Changed
+
+- **The installer is about 13 MB smaller** (153.7 → 141.0 MB; 518 MB
+  unpacked, was 566 MB): only the code-parsing grammars the app uses are
+  shipped, and leftover terminal build files are removed.
+- **The app connects to its backend sooner at startup.** It checks for the
+  backend after 25 ms and backs off, instead of waiting 150 ms between checks.
+- **Older clients asking for a whole chat over 2,000 messages get an error
+  asking them to page** (`413 paging_required`). The app itself always pages.
+- **The backend starts about twice as fast and the install is smaller.** The
+  packaged backend now ships as a bundle: cold start 1,013 ms → 527 ms (median,
+  Windows), 14,090 files / 223 MB → 8,043 files / 185 MB. Installs also stop
+  carrying about 2,000 compiled test files.
+- **An older Bodega One refuses a database written by a newer one**, with an
+  "update Bodega One" message, instead of changing it. No database is marked
+  this way yet; this prepares for the next engine sharing the file.
+- **o3 and the Kimi K2 models left the model picker.** OpenAI shuts o3 down
+  on 2026-12-11; Moonshot closed K2 to new accounts and retires it by the end
+  of December. Kimi K3.1 Pro takes its place. A saved selection keeps working
+  until the shutdown.
+- **Database migrations are split into three ordered modules** (internal; no
+  change to what runs or in what order).
+- `BODEGA_DETERMINISTIC=1` makes generated ids reproducible for test replay
+  (internal; environment only, never a setting). It now also pins the clock to
+  2026-01-01T00:00:00Z (timestamps, durations, SQLite's clock, the prompt's
+  date and local time), UUIDs, `Math.random` and the time zone, writes
+  telemetry rows one at a time, and accepts `BODEGA_TIME_SCALE` and
+  `BODEGA_TEST_OPENAI_WIRE=responses|chat`. With the variable unset nothing
+  changes.
+
 ## [1.0.0-beta.49] - 2026-11-03
 
 ### Fixed
