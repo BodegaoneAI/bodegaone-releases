@@ -7,6 +7,185 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.51] - 2026-11-09
+
+### Added
+
+- **Claude Fable 5.2 in the model picker.** Anthropic's newest model is listed
+  above Claude Fable 5.1, with its 1M context and its real prices: $8 in and $40 out
+  per million tokens, and cached input at $0.20. Claude Fable 5.1 stays available.
+  The CLI uses the app's model list, so nothing changes there.
+- **External coding agents can race in a parallel run.** Claude Code, Codex,
+  Gemini and the other external agents can now be picked for a parallel run
+  next to Bodega, each working in its own copy of the project with no chat
+  open. The agent needs its ACP adapter installed so it can ask before using
+  tools; an agent found without one is greyed out in the picker with the
+  reason. An agent that still asks for an approval during a run stops with an error
+  saying so, since a parallel run cannot ask; run that agent in a chat to
+  approve it. With air-gap on, external agents are refused, as before. (App only;
+  the CLI's fleet does not drive external agents.)
+- **Compare models says "not scored" for external agents.** Bodega does not
+  verify an external agent's work, so its column shows "not scored" instead of
+  a score, and it is listed after the scored ones. Judge it by its diff.
+- **OpenCode as an external coding agent.** If OpenCode is installed, it now
+  shows up next to Claude Code, Gemini CLI, Codex, Cursor and GitHub Copilot
+  under Settings → Connections → External coding agents, and you can run it
+  inside a Bodega chat. Install it with `npm install -g opencode-ai` and sign
+  in once with `opencode auth login`. OpenCode keeps its own keys: Bodega
+  never asks for them and never reads them.
+- **Artifacts in Chat Mode.** The agent can now put a page, chart, diagram or
+  document in the side panel as an artifact with a name. The reply shows a card
+  in place of the code (View source still shows it). Asking for a change makes
+  a new version of the same artifact, and the panel keeps every version, so you
+  can switch back. Artifacts are saved with the chat.
+- **HTML artifacts run, with no network.** An HTML artifact now runs in its own
+  isolated view: separate from the app, with no access to your files, and
+  unable to reach the internet or anything on your computer. The panel says
+  what it saw: Loaded, Threw (with the error, and a button to ask for a fix) or
+  Blocked (with the address it tried). React artifacts are shown as code for
+  now. Choose On, Static only or Off in Settings, General, Chat artifacts.
+- **Artifacts in Code Mode.** Ask for an artifact ("make me an HTML artifact
+  of a budget dashboard", "show it as an artifact") and the reply shows a card
+  in the agent panel. Open shows it in an Artifact tab in the editor area, with
+  the same versions, status and no-network sandbox as Chat Mode. Any other
+  request, including one to preview or mock something up, works on files in
+  your project as before.
+
+### Changed
+
+- **Less clutter at the top of a Code Mode session.** The header shows the session's real title instead of "New Session", the rows about where the session runs, its pull request and the next step are now one line you can click to expand, the run summary reads as three rows, and the tab strip marks hidden tabs with a thin edge instead of a fade.
+- **A calmer Agent panel in Code Mode.** Agent and Research stay as tabs. Debug
+  and Advisor now open from the "More views" button at the end of the tab row,
+  and the one you open shows as a tab until you go back. Keyboard still works:
+  Tab to the button, press Enter, pick with the arrow keys.
+- **The status bar names your model once.** It used to appear on the left and
+  again next to the memory bar. It now sits on the right, beside the memory bar,
+  which shows only memory use.
+- **The memory bar only turns amber when memory is nearly full.** It stays
+  neutral at a normal load, turns amber above 90% used, and red when nothing is
+  left. It used to turn amber at an ordinary 70% load.
+- **Shorter branch names in the status bar.** Session branches show without the
+  shared `bodega/` at the front, so the part that differs fits. Hover to see the
+  full name. The branch itself is unchanged.
+- **The context count is labelled.** It reads "Context 38k / 128k".
+- **The review reminder moved under the message box** and is shorter: "Review AI
+  changes before you keep them."
+- **The preview panel stays where you put it.** Picking an artifact no longer
+  jumps to the newest one when another reply arrives, and the count on the
+  panel button includes the reply being written.
+
+### Fixed
+
+- **A write you reject is no longer listed as a change.** Rejecting a file
+  write in Code Mode left the run card reading "1 to review" with Keep all and
+  Undo all, a review tab that said the file was not found, and a Changes panel
+  that opened on its own. A change is now recorded only when the write runs.
+- **Asking for an artifact in Code Mode no longer ends in a write loop.** The
+  agent was pushed to save a file you said you did not want until the run
+  stopped on repeated tool activity. An artifact reply now counts as the answer
+  when you ask for an artifact and artifacts are on. Any other request, such as
+  "update the mockup of the settings page" or "fix the build artifact upload
+  step", is still a code change, and a reply that shows an artifact instead of
+  making the edit is still sent back to make it.
+  When you asked for a file and the agent wrote it, the reply no longer also
+  shows the draft as an artifact card.
+- **Opening a folder in Code Mode no longer changes your chats.** The folder
+  was also attached to whichever Chat Mode chat was open. Chats keep only the
+  folder you attach to them yourself.
+- **A chat with no folder stays a chat.** Chat Mode sent the open Code Mode
+  folder with every message, so a chat with no folder could get the coding
+  interview, file tools and the folder's git status. A chat now works only in
+  the folder attached to it, if any, and that folder alone decides its project
+  rules, instruction files and Air-gap Vault. A chat with no folder is no
+  longer vault-protected by whatever folder Code Mode has open.
+- **Artifacts show when a request was blocked.** A running artifact that tried
+  to fetch from the internet was stopped but still said "Loaded", and under
+  Air-gap the refusal was not counted. It now says "Blocked" with the site's
+  name, and the refusal is counted like any other.
+- **Prices in a reply show as prices.** A reply like "income $4,850,
+  spending $2,007.64" no longer renders part of the sentence as a math
+  formula. Real inline math such as `$x^2$` still renders.
+- **Code Mode's Changes list stays in Code Mode.** Switching to Chat Mode
+  closes it, and a file change while you are in Chat Mode no longer opens it
+  over the chat.
+- **A new chat starts without the last run's summary.** A fresh chat no
+  longer shows a "$0.00 · Details" card left over from the previous one.
+- **The preview panel resizes again.** Dragging its left edge works while an
+  artifact is running in it.
+- **No false "isn't available" line after turning air-gap off.** The composer
+  now rechecks your providers the moment air-gap changes, instead of saying
+  your cloud model is not set up for up to half a minute.
+- **Chat answers with the model setup chose.** After setup said "answering
+  with Claude Opus 5.5", coding questions in Chat Mode went to whichever model
+  the provider listed first, which could be a pricier one. A tier with no model
+  set now uses your default model. The Code tier still picks an installed
+  coding model, such as Qwen2.5-Coder, when you have one.
+- **The chat box starts empty after setup.** It used to start with "What can
+  you help me with?" as real text, so your first message was sent with that
+  question stuck to the front of it.
+- **Updating a chat artifact keeps the new version.** Asking for a change to
+  an artifact in a chat with no folder attached could end with a reply saying
+  it could not save a file, and the new version was lost. The agent no longer
+  asks for a file save in a chat with no folder, and a new version written
+  partway through a reply is always kept. The stray "no file write performed"
+  follow-up is gone too.
+- **No coding questions for a simple artifact.** In a chat with no folder,
+  asking for something like a small calculator no longer opens Quick
+  Questions about which files and endpoints to create. In Code Mode, asking
+  for an artifact skips them too.
+
+- **An artifact that keeps retrying a blocked address no longer floods the
+  log.** Each address is reported once while the artifact is open, and the
+  air-gap report counts it once. An artifact that tries a new address every
+  time is reported for its first 20 addresses, then once more to say it kept going;
+  after that requests are only counted, with the total written to the log when it closes. Every request is still refused. Refusals in a vaulted project are now counted
+  even when the global air-gap toggle is off.
+- **Switching chats can no longer run the other chat's artifact.** Two chats
+  with an artifact of the same name stayed mixed up after a switch, so the
+  panel could open the wrong one.
+- **"Last run" now matches what the panel showed.** An artifact that was
+  blocked and then loaded is remembered as blocked, not as loaded.
+- **Closing the panel while an artifact is starting no longer leaves it on
+  screen**, and switching quickly between artifacts shows the one you picked
+  last.
+- **Static only and Off are checked before anything runs**, not only in the
+  panel, and nothing runs before your settings have loaded.
+- **The help page no longer says version numbers are never reused.** When the
+  only version of an artifact is regenerated, the artifact starts again at v1.
+- **An external agent that fails now says why.** When Claude Code, Codex or another
+  connected agent could not finish a run, the run showed only "Internal error". It
+  now shows the agent's own reason, for example that its Codex version is too old
+  for your account's model.
+- **Opening a Code Mode session from another folder shows that session.** Clicking a
+  session whose project is a different folder used to switch the folder and then
+  show an empty chat, so the next message started a new session. The session you
+  pick now opens with its history, and the agent terminal lines from the previous
+  folder are cleared.
+- **The thinking block lets you read while it streams.** Scrolling up in an open
+  thinking block no longer snaps back to the newest line on every update. It
+  follows new text again once you scroll back to the bottom.
+- **Stopping a reply mid-thinking no longer puts the thinking in the chat.** With a
+  model that thinks before it answers, pressing Stop while it was still thinking
+  saved its half-finished reasoning as the reply. The reasoning now stays in its
+  collapsed thinking block and the reply is left empty.
+- **A dry run of a plain task works with air-gap on.** "Dry run: verify only,
+  never open a PR" on a task you type fetches nothing, pushes nothing and opens
+  no PR, so air-gap no longer refuses it. The run follows the same air-gap rules
+  as any other session. Runs on a GitHub issue, and runs that can open a PR,
+  are still blocked under air-gap.
+- **The air-gap report counts only what air-gap refused.** When a local model
+  server tried to redirect a request off your machine, Bodega refused it and
+  counted it as an air-gap refusal even with air-gap off. It still refuses the
+  redirect either way, but the count in the air-gap report now only includes
+  refusals made while air-gap was on.
+
+### Known issues
+
+- In Code Mode, a short instruction such as "make the login button blue" with
+  no file named can get a description of the change instead of the change
+  itself. Name the file, or ask again, to have it applied.
+
+
 ## [1.0.0-beta.50] - 2026-11-09
 
 ### Security
