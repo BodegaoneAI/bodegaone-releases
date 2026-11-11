@@ -7,6 +7,46 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.53] - 2026-11-11
+
+### Changed
+
+- **Local models get one settings panel each.** Every llama.cpp model (loaded
+  or not) and every Ollama or LM Studio model has a Settings button that opens
+  its own panel: the context size the server really runs and why, a VRAM bar,
+  context, temperature, max tokens, sampling, GPU layers, threads, flash
+  attention, KV cache type, extra arguments with a preview, and one Save and
+  reload button. The global Advanced flags card now holds only the defaults.
+- **The context size Bodega plans with matches the server.** It never plans
+  for more than the llama.cpp server was started with, it reads the size LM
+  Studio, vLLM, SGLang and Ollama actually loaded, and it remembers a limit a
+  server reports. LM Studio, vLLM, SGLang and other self-hosted servers are now
+  treated as local.
+- **The same model file always gets the same settings,** however it is
+  referenced, and its size comes from the file itself, so a 27B model is no
+  longer treated as a small one with a 5-minute limit.
+- **Use Provider Defaults works.** Sampling values are left to the server; the
+  context size you set still applies.
+- The status bar shows the local model's state (loaded, loading, crashed, CPU),
+  rows show load progress, and a finished download offers Load now and Set as
+  default, for llama.cpp and Ollama.
+- Panel headers wrap instead of cutting off their buttons in a narrow sidebar,
+  and the Runs count sits clear of its icon on narrow tabs.
+
+### Fixed
+
+- **A long local run no longer loses its work when it runs out of context.**
+  Bodega counts what it actually sends, including the model's reasoning, asks
+  llama.cpp for the exact count before sending, and when a server still
+  refuses, trims oldest-first while keeping each tool call with its result.
+- Headless runs on llama.cpp (`bodega run`, editors, parallel runs) wait for
+  the model to load instead of failing straight away, and models dropped into
+  the models folder are found first.
+- A failed GPU check no longer starts a model at its full trained context.
+- Bodega only stops llama.cpp servers it started itself.
+- A stopped OpenAI-compatible local server shows as disconnected instead of
+  connected with no models.
+
 ## [1.0.0-beta.52] - 2026-11-11
 
 ### Changed
