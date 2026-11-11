@@ -7,6 +7,95 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.52] - 2026-11-11
+
+### Changed
+
+- **Reviewing agent changes in Code Mode is simpler.** The agent's edits are
+  saved as soon as you allow them, so there is no longer a Keep or Accept
+  step. The Changes panel lists every file the agent changed, Review opens a
+  file's diff, and Undo works per hunk, per file or for everything. The run
+  summary shows one "N files changed" line, the editor is no longer taken over
+  at the end of a run, and the end-of-run notice has a Review button. Hunk
+  Review is gone; its controls live in the file diff. Each row in Changes has
+  labelled Review and Undo buttons, and the Outline updates after an undo.
+- **Trusted folders.** You can open a project from any drive once you pick it
+  yourself. Manage the list in Settings, Privacy and Safety, Trusted folders.
+  System folders stay blocked.
+- **New device frames in Preview:** foldables (Galaxy Z Fold8 and Fold8 Ultra,
+  Z Flip8, Pixel 11 Pro Fold, Surface Duo 2, iPhone Duo) with a fold switch,
+  plus refreshed phones and tablets.
+- **Model prices and provider settings checked against each provider's
+  official pages** and corrected where they had drifted. Saved models and
+  provider URLs that were renamed are moved over for you. Qwen 3.7 Flash and Qwen
+  3.6 Plus are now charged by prompt size the way Alibaba bills them (short
+  prompts cost less than before), DeepSeek Flash is marked as accepting images,
+  and the Qwen setup tip points at the current Alibaba Model Studio key pages.
+- **A polish pass across the app:** clearer UI copy, visible keyboard focus
+  everywhere, consistent text sizes and corners, better layouts at narrow
+  widths, readable dropdowns in every theme, Settings shows a loading state
+  instead of a blank screen, and tour tips no longer cover the Map's minimap or
+  sit on top of Settings. Small projects fill the Map instead of being drawn
+  tiny, and the Runs panel shows one header.
+
+### Security
+
+- **Bodega's internal tokens are removed from the environment at startup,**
+  and every program Bodega starts gets an environment without them. Read-only
+  git commands no longer run repository hooks, external diff tools or file
+  filters.
+- **Web tools in Ask mode no longer approve themselves.** A `web_fetch` or
+  `web_search` approval that timed out after 30 seconds was treated as
+  approved. It is now treated as declined. Shell commands still follow the
+  command sandbox.
+- **One rule decides which folders Bodega may open as a project.** Network
+  (UNC) paths are refused, a project must be under your home folder or a
+  folder you trusted by picking it yourself, a deny list covers system
+  folders, and Bodega's own session worktrees are allowed.
+  The static folder preview now checks the same rule, the Host header and
+  symlinks (an `index.html` that is a symlink out of the folder is refused).
+- **Bodega Remote is stricter.** Group chats fail closed when the read-only
+  agent is unavailable, the pairing code is checked on the server, the pairing
+  cap is per platform, Allow needs the chat code, and Telegram and Discord
+  tokens are scrubbed from logs. Typing cancel in a confirm step goes back one
+  step, each chat's messages are handled in order, failed attachments say why,
+  and revoking a group's link really unbinds it.
+- **Artifact pages are more isolated.** The artifact error reporter can't be
+  fooled by page globals, workers are blocked, and with artifacts Off nothing
+  is stored.
+
+### Fixed
+
+- **Undo no longer leaves an empty file** when it removes a file the agent
+  created, and a file's status stays right after the agent edits it again or
+  after a checkpoint rollback.
+- **Approval keys:** pressing Esc to close a review panel never rejects a
+  pending approval, and Enter on a focused Reject button rejects.
+- Opening Settings, Preview or a file while the Map is showing brings it to
+  the front. A preview the agent opens does not pull focus away from the chat
+  box.
+- **Preview:** static preview servers stop when you close the preview or switch
+  projects, touch emulation applies only to the previewed page, and
+  landscape devices get the right safe-area insets.
+- **Editing or retrying a message after compaction keeps your history.** The
+  messages after the edit point are removed inclusively by position, so
+  compacted rows and artifact versions are kept, and a pruned artifact
+  version never opens as the current one.
+- **Parallel runs:** an external agent that stops early is reported as an
+  error (a Stop you press is not), Windows closes all of its processes before
+  its copy of the project is removed, and external agents are left out of the
+  run's cost.
+- **Bodega Map** draws multi-line, ESM and Python import edges, resets the
+  graph and selection when you switch projects, marks itself stale after
+  Refresh, skips git-ignored and noise files, and shows route errors safely.
+- **Preview** keeps a URL per project, keeps device emulation when reopened,
+  navigates to the same URL again, and reloads when the user agent changes.
+- **Artifact requests:** the files interview is skipped only when artifacts
+  are on and no file was asked for, and "make it", "turn it into" and
+  "I want" phrasings are recognised.
+- Setup clears a stale Chat role model, and linked sessions appear in the
+  cached session list.
+
 ## [1.0.0-beta.51] - 2026-11-09
 
 ### Added
