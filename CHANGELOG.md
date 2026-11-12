@@ -7,6 +7,56 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.53.1] - 2026-11-11
+
+### Changed
+
+- **A clearer settings panel for each local model.** The VRAM-safe size now comes
+  from the model file's own header, so it no longer jumps between a guess and the
+  real figure; a guess is labelled as an estimate and never shows a warning. If
+  the model is already running at a size, the panel says so instead of warning.
+  The context precedence is a short list you can open, the footer says plainly
+  whether there are unsaved changes, the Thinking switch explains On and Off and
+  shows for models that are not loaded, and the panel shows the last generation
+  speed. With Use Provider Defaults on, local servers also get no temperature or
+  max tokens from Bodega.
+- **Local servers are found where you set them up.** Auto-detect checks the
+  address and key you configured, not only the default port, says when a server
+  needs an API key, and no longer hides servers that share a port. Unsloth has a
+  Probe port button, image support is read from Ollama, error messages for local
+  servers say what to do, and the time limit for a local run follows the model's
+  real size and is shown when the run starts.
+- **Ollama:** the context size you set is the one Ollama runs (Load now loads
+  the model at that size), Discover marks a model Installed only when that exact
+  model is installed, a failed download says why (Ollama not running, disk full,
+  model not found), My models says when Ollama is not reachable instead of
+  "no models installed", Discover shows a loading state, and two wrong catalog
+  entries were removed.
+- **Run budget modes (opt in).** `agent.budget_mode` can be `steps` (the
+  default, unchanged), `progress` or `progress_paced`. Set it with
+  `bodega config set agent.budget_mode progress_paced`.
+- **CLI:** `bodega run --ctx <tokens>` sets a context ceiling for one run.
+
+### Fixed
+
+- **Check for updates shows the download.** It reads "Update found, downloading
+  N%" while the update downloads instead of staying on "Checking".
+- **The built-in llama.cpp updater no longer shows the old version** right after
+  an update, and a second click no longer replays a finished install.
+- **A loaded llama.cpp model is no longer reported unavailable** when it is
+  selected by its file name.
+- Panel headers no longer cut off their buttons in a narrow sidebar, and the
+  Runs count sits clear of its icon on narrow tabs.
+- Air-gap mode now also covers provider auto-detect and the tool-support check:
+  neither reaches a non-local address while it is on.
+
+- **Models > Discover and Auto-detect no longer fail with "Not Found" when another
+  program is using port 3000.** Bodega One now picks a free port for itself when
+  3000 is taken (Open WebUI, React and Grafana dev servers often use it). If
+  another program still answers where the backend should be, Bodega One shows a
+  clear message naming the port conflict instead of a stream of errors. The
+  model catalog and Auto-detect messages now say what actually failed.
+
 ## [1.0.0-beta.53] - 2026-11-11
 
 ### Changed
