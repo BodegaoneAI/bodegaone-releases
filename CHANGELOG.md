@@ -7,6 +7,166 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.54] - 2026-11-15
+
+### Added
+
+- **A sub-agent that needs your repository's hooks approved asks you.** A `spawn_agent` sub-agent that
+  has to commit in a repository with git hooks used to stop with a message. When you are in the chat and it
+  runs in the foreground, it now shows the same approval card the agent's own first hooked commit shows, and
+  your yes covers that repository for the session. Parallel sub-agents show one card, not one each.
+  Background sub-agents and unattended runs still refuse.
+- **A sub-agent that changes the hooks is asked about, not discarded.** If the hooks (or what they run)
+  changed while a sub-agent worked, the card is offered again when it commits, listing the worktree, the
+  files it changed and a warning that the hooks changed. A yes commits; otherwise the changes stay
+  uncommitted in the worktree and the report says where.
+- **Hook approval now covers what a hook runs.** A husky hook that runs `npm run lint` is only as safe as
+  `package.json`'s `scripts`. The approval is tied to: the hook files; `package.json` `scripts`,
+  `lint-staged`, `husky` and `simple-git-hooks` (at the root, in a folder a hook `cd`s into or names with
+  `--prefix`/`-C`/`--cwd`, and in every workspace for `-r`/`-ws`); lint-staged configs at any depth,
+  `.pre-commit-config.yaml` and lefthook configs, and a Makefile when a hook calls `make`; and files named by
+  the hook, by the package scripts it runs (one `npm run` hop and a nested one), by lint-staged commands,
+  and files those source or call. Files a hook passes as arguments count too (`tsc -p tsconfig.json`,
+  a linter given one file). A version or dependency change does not ask again; comments and redirect targets
+  (`> logs/x.log`) do not count. **Not covered:** a script a hook runs that git ignores (`dist/hook.js`,
+  `node_modules/.bin`), a path built at run time, a tool's own config (`eslint.config.js`, `.prettierrc`),
+  whatever `npx` resolves from `node_modules`, a symlink that leaves the repository, and anything deeper
+  than the second hop. If git cannot answer while the hooks are read, the approval asks every time, nothing is recorded, and unattended commits are refused.
+- **Headless runs get a restore point before their first write.** Loops, Issue runs, Fleet and background
+  sessions skipped the chat step that takes the turn checkpoint, so their first write had nothing to restore
+  to. They now start the checkpoint first, labelled with the run's own prompt, and the first changing tool
+  waits for it (up to 3 s). The first checkpoint of a project indexes the whole folder once, in the
+  background, and each worktree's store is deleted with the worktree.
+
+- **Work in a separate worktree, from the first message.** In the composer's
+  Location menu, **Work in a separate worktree** makes every new Code session in
+  this project start in its own worktree on a `bodega/` branch, so the agent
+  edits a copy and your main folder stays untouched. It is off by default,
+  remembered per project on this computer, and needs a git repository with at
+  least one commit (otherwise the item is greyed out and offers to set the
+  repository up). The file tree, editor, terminal, search, Source Control and
+  preview all follow the worktree. It is based on your local HEAD, so it works
+  under Air-Gap. Files you list in a `.worktreeinclude` file (for example
+  `config/local.json`) are copied into the new worktree; `.env` files, keys and
+  similar secret-named files are not copied unless you list them on a line that
+  starts with `allow-secret:`. Git LFS files are pointer files in a new worktree
+  until you run `git lfs pull` there (creating a worktree never downloads
+  anything).
+
+- **Runs nobody started stop before committing in repositories with commit
+  hooks.** A scheduled loop or batch, or a run started from a GitHub comment,
+  commits the agent's work with git. In a repository whose commit runs hooks
+  (husky, a `pre-commit` script, signing, or Git LFS installed with `git lfs
+  install --local`), such a run now stops with a report and keeps the worktree,
+  because no person approved those programs. A run you start yourself, and your
+  own Apply and Archive clicks, count as your approval; Apply and Archive tell
+  you first when the agent changed the hooks themselves. If the agent edits a
+  tracked hooks folder during a run, the commit stops too.
+
+- **Discard and delete name what you would lose.** Discarding a worktree, closing
+  it in the fleet, deleting a session (one or several) or deleting a worktree
+  from Cleanup now says, in the same dialog, how many uncommitted files and
+  how many commits that exist nowhere else would be destroyed, and the button
+  reads **Discard anyway** or **Delete anyway**. "Don't ask again" never skips
+  it. Cleanup of leftover folders removes only a worktree Bodega marked as its
+  own that has no unsaved work; anything else is kept and listed for you.
+
+- **Source Control checks before it commits or pushes.** **Commit**, **Push** and
+  **Create PR** now run the same safety checks the agent's git tools run: the
+  staged changes and the commits to push are scanned for credentials, the
+  repository's own config may not redirect where a push goes, and the exact
+  destination is shown before you click. A finding stops the action and names
+  the file and line; **Commit anyway** and **Push anyway** are a deliberate second
+  click. A config that redirects a remote is refused with no way through.
+
+- **Rewind covers shell changes.** Before every prompt that starts a turn,
+  Bodega saves a snapshot of the whole project folder in a private store in its
+  data folder (never in your `.git`, and it works in folders that are not git
+  repositories), so changes made by shell commands, formatters and sub-agents
+  can be undone too. In the Checkpoints panel, **Rewind** offers **Restore
+  code**, **Restore conversation** and **Restore code and conversation**.
+  Restoring first saves a **Before restore** checkpoint (so it can be undone),
+  is refused while the agent is running, and leaves git-ignored files, files
+  over 5 MB and secret-named files (`.env*`, keys) alone. A project too large
+  to snapshot shows "checkpoint skipped: project too large". A project's first
+  snapshot is built in the background (that turn shows "still indexing" and is
+  never delayed). Bodega asks before every restore, a restore leaves files no
+  checkpoint holds exactly as they are, and a conversation rewind hands your
+  prompt back to the message box. Needs git installed; keeps the newest 100 per
+  chat for 30 days. The CLI keeps its own `/undo` snapshots for now.
+
+- **Branch to pull request in one step.** The new `/pr` skill makes a feature
+  branch if you are on the default branch, commits the files you named, pushes
+  (asking you, with the exact destination) and opens the pull request on GitHub
+  (asking you again) with a Summary and a Test plan. Source Control has the same
+  flow behind a **Create PR** button and shows the link afterwards. With Air-Gap
+  on it commits locally and hands you the drafted description instead; an
+  unattended run stops at the push. From Bodega Remote the pull request step now
+  shows its own card (repository, branch, title).
+- **Git that sets itself up properly.** A folder without git gets an
+  **Initialize repository** button in Source Control and Fleet: it runs
+  `git init`, writes a `.gitignore` for your stack, shows the files it would
+  track, and lets you review and create the first commit. Secret files are
+  left out of that commit, and Bodega asks for your name and email instead of
+  inventing them. A notice says when the folder sits inside another repository.
+- **The agent uses git with care.** In Code Mode it checks status first, never
+  adds everything blindly, writes a `.gitignore` before the first add, never
+  commits secrets, and commits only when you ask. New `git` and `git_remote`
+  tools replace raw shell git: reading runs freely in Ask, a commit is checked
+  for secrets first, and push and pull always ask, refuse main and the default
+  branch, and are blocked in air-gap mode.
+- **Unload button on the VRAM strip.** After switching a chat to a cloud model
+  you can free the llama.cpp model's GPU memory right away.
+- **Locate… relinks a missing GGUF.** When a llama.cpp model file has moved, the library offers
+  Locate… to point it at the file again instead of showing a broken row.
+- **Review a worktree's changes in the editor.** Review diff opens the worktree diff as an editor tab
+  with Apply and Discard.
+
+### Changed
+
+- **Agent commits carry no attribution, and auto-commit is off by default.**
+  `git.agent_attribution` and `git.auto_commit_ai_changes` are now opt in.
+- **Source Control git is hardened.** Commits from Source Control, auto-commit
+  and worktrees use your identity, the secret scan and safe git arguments;
+  amend happens only when asked and never on a pushed commit, and push confirms
+  before touching a protected branch.
+- **Strong models finish their own work.** Capable models keep their final
+  answer instead of having it replaced by a file list, are no longer
+  force-completed at 75% of their steps, and see the run budget line only near
+  the end. A run still making progress at its step ceiling extends itself
+  instead of waiting on a card.
+- **Spending caps count the right money.** The per-run cap counts only that run
+  and its sub-agents (default raised from $2 to $10); daily and monthly caps
+  now also stop a run in progress (cloud only). The stop message says what
+  happened, shows sub-cent amounts, and has a Change limit button. The Spending
+  page shows the whole period, rejects a blank custom price, and uses one money
+  format.
+- Every range input uses one shared slider that commits on release.
+- **The agent's shell `git commit` and `git push` go through the git tools.** They are refused before
+  the approval card and routed to `git` / `git_remote`, so the secret scan and push rules always apply
+  (`--amend` is exempt). `/commit` and `/git-setup` use the git tool too.
+- **Switching away from llama.cpp frees its VRAM** when nothing else still uses the model. The llama.cpp
+  library lists your downloaded models in the picker, hides missing, duplicate and mmproj rows, and offers Unload.
+- Undo all names the commit that touched the files.
+
+### Fixed
+
+- Switching between Ask and Act now reaches the turn that is already running,
+  including MCP, desktop and preview approvals.
+- Esc or Enter aimed at a dialog no longer answers a pending tool approval or
+  closes the panel underneath.
+- Pressing Delete in the sessions drawer's confirm no longer closes the drawer.
+- A model picked from another provider is the one that is saved (no silent switch to Sonnet), Set as
+  Primary lands on a recent or curated model of that provider, and a pick that isn't listed says so.
+- llama.cpp loads the model you picked (including a Code Mode pick) and no longer strands the picker; with
+  no model named and the default cleared, it uses the provider's configured model.
+- Saving another provider's key no longer reloads the primary model.
+- Gemini keeps its gemma and learnlm models; model search matches display names.
+- Short replies no longer trip the repetition stop.
+- The answer check no longer reads file names as code, reads git output, and keeps its raw report out of the reply.
+- Refused tool calls show as refused; the push card warns before a refused origin; air-gap messages say what happened.
+- Cancelling the folder-access prompt closes it cleanly.
+
 ## [1.0.0-beta.53.1] - 2026-11-11
 
 ### Changed
