@@ -7,6 +7,30 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0-beta.54.1] - 2026-11-15
+
+### Fixed
+
+- **Ask and Plan now ask before starting a sub-agent.** Starting a sub-agent used to go ahead without a card
+  in Ask and Plan mode, and its checked changes were merged into your project with nobody in the loop. You now
+  get the usual approval card for each sub-agent, and a sub-agent's changes are only merged when the session is in
+  Act mode; from Ask or Plan they stay on a branch and come back as a diff (cut at 500 lines) for you to review and apply.
+- **A loop file committed to a repository can no longer switch on automatic apply, a schedule or a provider.**
+  Importing such a file now creates the loop switched off, set to review before applying, and on your own
+  provider and model. Re-importing only updates the name, task and limits of an existing loop, switches it off
+  and back to review if it was on, and refuses a loop of the same name that belongs to another project. The
+  desktop app shows what was ignored; the command line import prints only the loop name.
+- **A merge that cannot be committed is no longer reported as applied.** When a git hook (or a missing git name
+  and email) stopped the final commit, Bodega said the changes were applied, deleted the work, and left a
+  half-finished merge in your project. It now undoes the merge, leaves your project as it was, keeps the work
+  to apply again, and says why. Apply also refuses, before touching anything, when you have changes staged for
+  commit, and if a commit hook rewrote files while failing it says the project was not restored and how to fix it.
+- **A second Bodega process on the same data can no longer disturb the first.** The command line and the VS Code
+  extension start their own engine on the same database as the desktop app. That second engine no longer marks
+  the desktop's running sub-agents, turns and pending approvals as lost at startup, no longer starts its own
+  clean-up and schedulers, and cannot apply changes to a project while another Bodega is applying to it. If the
+  desktop app exits, a command line engine left running takes over that housekeeping.
+
 ## [1.0.0-beta.54] - 2026-11-15
 
 ### Added
